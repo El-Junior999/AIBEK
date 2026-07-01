@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-BEK — Выбор профиля</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f0c29 0%, #1a1040 40%, #0d1b4b 100%);
+      padding: 24px;
+    }
+
+    /* Subtle animated background orbs */
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 600px;
+      height: 600px;
+      background: #3b5bff;
+      top: -180px;
+      left: -180px;
+    }
+    body::after {
+      width: 500px;
+      height: 500px;
+      background: #18d8e8;
+      bottom: -160px;
+      right: -160px;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 28px;
+      padding: 48px 48px 52px;
+      width: 100%;
+      max-width: 680px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow:
+        0 32px 80px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 6px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #3b5bff 0%, #18d8e8 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 8px 24px rgba(59, 91, 255, 0.40);
+    }
+
+    .logo-icon svg {
+      width: 26px;
+      height: 26px;
+      fill: #fff;
+    }
+
+    .logo-text {
+      font-size: 28px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span {
+      background: linear-gradient(90deg, #3b5bff, #18d8e8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.45);
+      margin-bottom: 36px;
+      margin-top: 4px;
+      font-weight: 400;
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+      margin-bottom: 32px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.30);
+      margin-bottom: 16px;
+    }
+
+    .roles-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .role-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 16px;
+      cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+      text-align: left;
+      width: 100%;
+    }
+
+    .role-btn:hover {
+      background: rgba(255, 255, 255, 0.10);
+      border-color: rgba(255, 255, 255, 0.20);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .role-btn:active {
+      transform: translateY(0px);
+      box-shadow: none;
+    }
+
+    .role-dot {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .role-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .role-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+
+    .role-desc {
+      font-size: 11.5px;
+      color: rgba(255, 255, 255, 0.38);
+      font-weight: 400;
+      line-height: 1.3;
+    }
+
+    .footer-note {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.20);
+    }
+
+    @media (max-width: 520px) {
+      .card {
+        padding: 32px 24px 36px;
+      }
+      .roles-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="logo-row">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+        </svg>
+      </div>
+      <div class="logo-text">AI<span>-BEK</span></div>
+    </div>
+    <div class="subtitle">Интеллектуальная система управления образованием</div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Выберите профиль</div>
+
+    <div class="roles-grid">
+
+      <button class="role-btn" onclick="selectRole('super', 'dashboard.html')">
+        <div class="role-dot" style="background: rgba(59,91,255,0.18);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="#3b5bff"/>
+          </svg>
+        </div>
+        <div class="role-info">
+          <div class="role-name">Супер Админ</div>
+          <div class="role-desc">Полный доступ к системе</div>
+        </div>
+      </button>
+
+      <button class="role-btn" onclick="selectRole('admin', 'dashboard.html')">
+        <div class="role-dot" style="background: rgba(18,201,155,0.18);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="#12c99b"/>
+          </svg>
+        </div>
+        <div class="role-info">
+          <div class="role-name">Админ</div>
+          <div class="role-desc">Управление платформой</div>
+        </div>
+      </button>
+
+      <button class="role-btn" onclick="selectRole('operator', 'dashboard.html')">
+        <div class="role-dot" style="background: rgba(245,166,35,0.18);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="#f5a623"/>
+          </svg>
+        </div>
+        <div class="role-info">
+          <div class="role-name">Оператор</div>
+          <div class="role-desc">Операционные задачи</div>
+        </div>
+      </button>
+
+      <button class="role-btn" onclick="selectRole('teacher', 'teacher.html')">
+        <div class="role-dot" style="background: rgba(139,92,246,0.18);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="#8b5cf6"/>
+          </svg>
+        </div>
+        <div class="role-info">
+          <div class="role-name">Учитель</div>
+          <div class="role-desc">Обучение и журнал</div>
+        </div>
+      </button>
+
+      <button class="role-btn" onclick="selectRole('director', 'director.html')">
+        <div class="role-dot" style="background: rgba(255,90,95,0.18);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="#ff5a5f"/>
+          </svg>
+        </div>
+        <div class="role-info">
+          <div class="role-name">Директор</div>
+          <div class="role-desc">Управление школой</div>
+        </div>
+      </button>
+
+      <button class="role-btn" onclick="selectRole('head', 'head.html')">
+        <div class="role-dot" style="background: rgba(24,216,232,0.18);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#18d8e8"/></svg>
+        </div>
+        <div class="role-info">
+          <div class="role-name">Министр образования</div>
+          <div class="role-desc">Республиканский уровень</div>
+        </div>
+      </button>
+      <button class="role-btn" onclick="selectRole('nachalnik', 'nachalnik.html')">
+        <div class="role-dot" style="background: rgba(233,79,208,0.18);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#e94fd0"/></svg>
+        </div>
+        <div class="role-info">
+          <div class="role-name">Нач. управления</div>
+          <div class="role-desc">Областной уровень — Андижан</div>
+        </div>
+      </button>
+      <button class="role-btn" onclick="selectRole('zav', 'zav.html')">
+        <div class="role-dot" style="background: rgba(245,166,35,0.18);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#f5a623"/></svg>
+        </div>
+        <div class="role-info">
+          <div class="role-name">Зав. отделом</div>
+          <div class="role-desc">Районный уровень — Юнусабад</div>
+        </div>
+      </button>
+
+    </div>
+
+    <div class="footer-note">AI-BEK &copy; 2026 — Система автоматизации образования</div>
+  </div>
+
+  <script>
+    function selectRole(roleKey, targetPage) {
+      localStorage.setItem('aibek_role', roleKey);
+      window.location.href = targetPage;
+    }
+  </script>
+
+</body>
+</html>

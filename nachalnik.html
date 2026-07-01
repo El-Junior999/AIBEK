@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI-BEK · Нач. управления</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css" />
+<script src="data.js"></script>
+<style>
+  :root{
+    --blue:#3b5bff; --blue-deep:#2f4bff; --violet:#8b5cf6; --cyan:#18d8e8;
+    --teal:#12c99b; --pink:#e94fd0; --red:#ff3b3b; --amber:#f5a623; --ink:#121524;
+    --muted:#8a91a6; --line:#eef0f6; --page:#f6f8fc; --card:#ffffff;
+    --lav:#c9cbff; --shadow:0 8px 26px rgba(28,40,90,.06); --radius:20px;
+    --sb:#3f5dfb; --sb2:#3a52ec; --side-w:272px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    background:var(--sb); color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ===== App shell ===== */
+  .app{display:flex;min-height:100vh;}
+  .sidebar{
+    width:var(--side-w);flex-shrink:0;position:sticky;top:0;height:100vh;
+    background:linear-gradient(185deg,var(--sb),var(--sb2));
+    display:flex;flex-direction:column;padding:26px 20px 22px;color:#fff;
+    overflow:hidden;transition:width .3s ease,padding .3s ease;
+  }
+  .sb-brand{display:flex;align-items:center;gap:3px;font-size:27px;font-weight:800;
+    letter-spacing:.5px;padding:4px 8px 26px;overflow:hidden;white-space:nowrap;}
+  .sb-brand .ai{color:#fff;}
+  .sb-brand .bek{color:#fff;}
+  .sb-nav{display:flex;flex-direction:column;gap:6px;flex:1;overflow:hidden;}
+  .sb-link{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:14px;
+    color:rgba(255,255,255,.86);font-size:15px;font-weight:600;cursor:pointer;
+    transition:background .15s,color .15s;text-decoration:none;white-space:nowrap;}
+  .sb-link svg{width:21px;height:21px;flex-shrink:0;stroke-width:2;}
+  .sb-link:hover{background:rgba(255,255,255,.13);color:#fff;}
+  .sb-link.active{background:#fff;color:var(--blue);font-weight:700;box-shadow:0 10px 22px rgba(20,30,80,.18);}
+
+  .sb-toggle{position:absolute;top:26px;right:16px;width:26px;height:26px;border-radius:8px;
+    border:none;background:rgba(255,255,255,.18);cursor:pointer;color:#fff;
+    display:flex;align-items:center;justify-content:center;transition:background .15s;z-index:2;}
+  .sb-toggle:hover{background:rgba(255,255,255,.3);}
+  .sb-toggle svg{width:14px;height:14px;transition:transform .3s;}
+
+  .sb-foot{margin-top:8px;display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .sb-mascot{width:160px;max-width:100%;height:auto;display:block;border-radius:0;object-fit:contain;}
+  .sb-logout{width:46px;height:46px;border-radius:14px;border:none;flex-shrink:0;
+    background:#fff;color:var(--red);display:flex;align-items:center;justify-content:center;cursor:pointer;
+    box-shadow:0 10px 22px rgba(20,30,80,.18);transition:transform .15s;}
+  .sb-logout:hover{transform:translateY(-2px);}
+
+  /* Collapsed */
+  .sidebar.collapsed{width:72px;padding:26px 8px 22px;}
+  .sidebar.collapsed .sb-brand{padding:4px 4px 26px;justify-content:center;}
+  .sidebar.collapsed .sb-brand .ai,.sidebar.collapsed .sb-brand .bek{display:none;}
+  .sidebar.collapsed .sb-brand::after{content:'AB';font-size:18px;font-weight:900;color:#fff;}
+  .sidebar.collapsed .sb-toggle{right:auto;left:50%;transform:translateX(-50%);}
+  .sidebar.collapsed .sb-toggle svg{transform:rotate(180deg);}
+  .sidebar.collapsed .sb-link{padding:12px;justify-content:center;gap:0;}
+  .sidebar.collapsed .sb-link span{display:none;}
+  .sidebar.collapsed .sb-mascot{width:52px;opacity:.7;}
+  .sidebar.collapsed .sb-logout{margin:0 auto;}
+
+  /* Role switcher */
+  .sb-role{position:relative;margin:0 0 18px;}
+  .sb-role-btn{display:flex;align-items:center;gap:9px;padding:10px 13px;border-radius:13px;
+    background:rgba(255,255,255,.12);cursor:pointer;user-select:none;transition:background .18s;}
+  .sb-role-btn:hover{background:rgba(255,255,255,.2);}
+  .sb-role-btn .rb-ico{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.18);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .sb-role-btn .rb-ico svg{width:15px;height:15px;color:#fff;}
+  .sb-role-btn .rb-lbl{flex:1;font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sb-role-btn .rb-chev{color:rgba(255,255,255,.6);transition:transform .2s;flex-shrink:0;}
+  .sb-role-btn .rb-chev svg{width:14px;height:14px;display:block;}
+  .sb-role.open .rb-chev{transform:rotate(180deg);}
+  .sb-role-pop{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;
+    background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:200;overflow:hidden;padding:5px;}
+  .sb-role.open .sb-role-pop{display:block;}
+  .sb-role-pop button{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;
+    background:none;border:none;border-radius:9px;font-size:12.5px;font-weight:600;color:#3a4256;cursor:pointer;text-align:left;}
+  .sb-role-pop button:hover{background:#f4f6fb;}
+  .sb-role-pop button.active{background:#eef0ff;color:var(--blue);}
+  .sb-role-pop .rp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .sb-role-pop .rp-sep{height:1px;background:#f0f2f8;margin:5px 0;}
+
+  .main{flex:1;min-width:0;background:var(--page);border-top-left-radius:38px;
+    padding:24px 34px 40px;display:flex;flex-direction:column;gap:24px;position:relative;overflow-y:auto;}
+
+  /* Topbar */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;}
+  .topbar-title{font-size:22px;font-weight:800;color:var(--ink);}
+  .topbar-right{display:flex;align-items:center;gap:18px;}
+  .tb-sep{width:1px;height:30px;background:#dfe3ee;}
+  .tb-user{display:flex;align-items:center;gap:11px;}
+  .tb-avatar{width:38px;height:38px;border-radius:50%;background:#e7eaf4;color:#8a91a6;
+    display:flex;align-items:center;justify-content:center;}
+  .tb-user b{font-size:15px;font-weight:700;color:var(--ink);}
+
+  /* Stat cards */
+  .stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;}
+  .stat-card{background:var(--card);border:1px solid #eef1f6;border-radius:16px;
+    padding:14px 18px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);}
+  .stat-top{display:flex;align-items:center;gap:12px;flex:1;}
+  .stat-ico{width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;
+    align-items:center;justify-content:center;color:#fff;}
+  .stat-ico svg{width:22px;height:22px;}
+  .stat-num{font-size:24px;font-weight:800;line-height:1;}
+  .stat-lbl{font-size:12px;font-weight:600;color:#6b7390;margin-top:3px;}
+
+  /* Compare card */
+  .compare-card{background:#fff;border-radius:20px;padding:22px 24px;box-shadow:0 2px 12px rgba(30,40,100,.07);}
+  .compare-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .compare-title{font-size:16px;font-weight:800;color:#1b2550;}
+  .compare-canvas-wrap{height:240px;position:relative;}
+
+  /* Analytics dir-grid */
+  .dir-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;}
+  .dir-grid .sp-card{background:#fff;border-radius:20px;padding:22px 24px;box-shadow:0 2px 12px rgba(30,40,100,.07);}
+  .dir-card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;}
+  .dir-card-title{font-size:15px;font-weight:800;color:#1b2550;}
+  .dir-chart-wrap{position:relative;width:100%;height:220px;}
+
+  /* Problem topics */
+  .dir-prob-subj{font-size:12px;font-weight:700;color:#8a94b0;text-transform:uppercase;letter-spacing:.5px;margin-top:10px;}
+  .dir-prob-subj:first-child{margin-top:0;}
+  .dir-prob-row{display:flex;align-items:center;gap:10px;}
+  .dir-prob-name{font-size:13px;font-weight:600;color:#3a4256;flex:1;}
+  .dir-prob-bar-bg{flex:1.5;height:7px;background:#f0f2f8;border-radius:99px;overflow:hidden;}
+  .dir-prob-bar{height:100%;border-radius:99px;}
+  .dir-prob-pct{font-size:12px;font-weight:800;color:#8a94b0;min-width:32px;text-align:right;}
+
+  /* Scroll list */
+  .dir-scroll-list{max-height:320px;overflow-y:auto;padding-right:4px;}
+  .dir-scroll-list::-webkit-scrollbar{width:4px;}
+  .dir-scroll-list::-webkit-scrollbar-track{background:transparent;}
+  .dir-scroll-list::-webkit-scrollbar-thumb{background:#c5cae9;border-radius:99px;}
+
+  /* Drill table */
+  .drill-card{background:#fff;border-radius:20px;padding:22px 24px;box-shadow:0 2px 12px rgba(30,40,100,.07);}
+  .drill-title{font-size:16px;font-weight:800;color:#1b2550;margin-bottom:16px;}
+  .dir-breadcrumb{font-size:13px;font-weight:600;color:#8a94b0;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+  .dir-breadcrumb a{color:#3b5bff;cursor:pointer;text-decoration:none;}
+  .dir-breadcrumb a:hover{text-decoration:underline;}
+  .dir-breadcrumb .sep{color:#c0c6d9;}
+
+  .dir-class-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .dir-class-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#8a94b0;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #f0f2f8;white-space:nowrap;}
+  .dir-class-table td{padding:11px 14px;border-bottom:1px solid #f5f6fc;color:#3a4256;font-weight:600;}
+  .dir-class-table tbody tr{cursor:pointer;}
+  .dir-class-table tbody tr:hover td{background:#f8f9ff;}
+  .dir-class-table tr:last-child td{border-bottom:none;}
+  .dir-class-name{font-weight:800;color:#1b2550;}
+  .dir-trend-up{color:#12c99b;font-weight:900;}
+  .dir-trend-dn{color:#ff5a5f;font-weight:900;}
+  .dir-attn-count{display:inline-flex;align-items:center;justify-content:center;min-width:28px;padding:2px 8px;border-radius:8px;background:#fff0f0;color:#ff5a5f;font-size:12px;font-weight:700;}
+
+  .sp-badge{display:inline-block;padding:4px 12px;border-radius:8px;font-size:12px;font-weight:800;}
+  .sp-badge.hi{background:#e6faf3;color:#12c99b;}
+  .sp-badge.mid{background:#fff8e6;color:#f5a623;}
+  .sp-badge.lo{background:#ffe8e8;color:#ff5a5f;}
+
+  @media(max-width:1280px){
+    .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .dir-grid{grid-template-columns:1fr;}
+  }
+  @media(max-width:980px){
+    .sidebar{width:84px;padding:22px 12px;}
+    .sb-brand{font-size:0;padding:4px 0 22px;justify-content:center;}
+    .sb-link span{display:none;} .sb-link{justify-content:center;padding:13px 0;}
+    .sb-foot{display:none;}
+    .main{border-top-left-radius:30px;padding:20px 18px 32px;}
+  }
+  @media(max-width:760px){
+    .stat-grid{grid-template-columns:1fr 1fr;}
+    .dir-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sb-toggle" id="sbToggle" title="Свернуть меню">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="sb-brand"><span class="ai">AI-</span><span class="bek">BEK</span></div>
+
+    <!-- Role switcher -->
+    <div class="sb-role" id="sbRole">
+      <div class="sb-role-btn" id="roleBtn">
+        <div class="rb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5zM3 21a9 9 0 0 1 18 0"/></svg></div>
+        <span class="rb-lbl">Нач. управления</span>
+        <span class="rb-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <div class="sb-role-pop" id="rolePop">
+        <button data-role="super"><span class="rp-dot" style="background:#3b5bff"></span>Супер Админ</button>
+        <button data-role="admin"><span class="rp-dot" style="background:#12c99b"></span>Админ</button>
+        <button data-role="operator"><span class="rp-dot" style="background:#f5a623"></span>Оператор</button>
+        <div class="rp-sep"></div>
+        <button data-role="teacher"><span class="rp-dot" style="background:#8b5cf6"></span>Учитель</button>
+        <button data-role="director"><span class="rp-dot" style="background:#ff5a5f"></span>Директор</button>
+        <button data-role="head"><span class="rp-dot" style="background:#18d8e8"></span>Министр образования</button>
+        <button data-role="nachalnik" class="active"><span class="rp-dot" style="background:#e94fd0"></span>Нач. управления</button>
+        <button data-role="zav"><span class="rp-dot" style="background:#f5a623"></span>Зав. отделом</button>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <a class="sb-link active" href="nachalnik.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-4H4zM14 8h6V4h-6z" stroke-linejoin="round"/></svg>
+        <span>Дашборд</span>
+      </a>
+      <a class="sb-link" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 6.2a3 3 0 0 1 0 5.6M18.5 20a4.8 4.8 0 0 0-3-4.4" stroke-linecap="round"/></svg>
+        <span>Пользователи</span>
+      </a>
+      <a class="sb-link" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-2 9-2 9h16s-2-2-2-9M10.5 21a2 2 0 0 0 3 0" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Уведомления</span>
+      </a>
+    </nav>
+
+    <div class="sb-foot">
+      <img class="sb-mascot" src="./robot.png" alt="AI-BEK" onerror="this.style.display='none'">
+      <button class="sb-logout" title="Выйти" id="logoutBtn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5M20 12H9M11 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== Main content ===== -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-title" id="nachTopbarTitle">Аналитика по региону</div>
+      <div class="topbar-right">
+        <div class="lang-switch"><button class="lang-btn active" onclick="setLang('uz')">UZ</button><button class="lang-btn" onclick="setLang('ru')">RU</button><button class="lang-btn" onclick="setLang('en')">EN</button></div>
+        <span class="tb-sep"></span>
+        <div class="tb-user">
+          <span class="tb-avatar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0" stroke-linecap="round"/></svg>
+          </span>
+          <b id="headUserName">Начальник управления</b>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="stat-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#3b5bff">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 10.5 12 5 2 10.5l10 5.5z"/>
+              <path d="M6 13v5c2 1.4 4 2.1 6 2.1s4-.7 6-2.1v-5"/>
+            </svg>
+          </div>
+          <div><div class="stat-num" id="statStudents">—</div><div class="stat-lbl">Учеников</div></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#12c99b">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+            </svg>
+          </div>
+          <div><div class="stat-num" id="statDZ">—</div><div class="stat-lbl">Ср. балл ДЗ</div></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#ff5a5f">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div><div class="stat-num" id="statAttn">—</div><div class="stat-lbl">Требуют внимания</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter chips -->
+    <div id="nachalnikChips" style="display:flex;gap:8px;flex-wrap:wrap;min-height:0;"></div>
+
+    <!-- Chart 1: Districts -->
+    <div class="compare-card">
+      <div class="compare-head">
+        <div class="compare-title">
+          <span id="distTitle">Успеваемость по районам</span>
+          <span style="margin-left:10px;font-size:11px;color:#8a94b0;font-weight:500;">← нажмите на район</span>
+        </div>
+        <div id="distSelLabel" style="font-size:13px;font-weight:700;color:#e94fd0;"></div>
+      </div>
+      <div class="compare-canvas-wrap"><canvas id="cDistricts"></canvas></div>
+    </div>
+
+    <!-- Chart 2: Schools -->
+    <div class="compare-card" id="nachSchoolsCard" style="display:none;">
+      <div class="compare-head">
+        <div class="compare-title" id="schoolsChartTitle">
+          Успеваемость по школам
+          <span style="margin-left:10px;font-size:11px;color:#8a94b0;font-weight:500;">← нажмите на школу</span>
+        </div>
+        <div id="schoolSelLabel" style="font-size:13px;font-weight:700;color:#e94fd0;"></div>
+      </div>
+      <div class="compare-canvas-wrap"><canvas id="cSchoolsNach"></canvas></div>
+    </div>
+
+    <!-- Chart 3: Classes (grades 1-11) -->
+    <div class="compare-card" id="nachClassesCard" style="display:none;">
+      <div class="compare-head">
+        <div class="compare-title" id="nachClsChartTitle">Успеваемость по классам
+          <span style="margin-left:10px;font-size:11px;color:#8a94b0;font-weight:500;">← нажмите на класс</span>
+        </div>
+        <div id="nachClsSelLabel" style="font-size:13px;font-weight:700;color:#e94fd0;"></div>
+      </div>
+      <div style="overflow-x:auto;overflow-y:hidden;height:240px;">
+        <canvas id="cNachClasses"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 4: Groups -->
+    <div class="compare-card" id="nachGroupsCard" style="display:none;">
+      <div class="compare-head">
+        <div class="compare-title" id="nachGrpChartTitle">Успеваемость по группам
+          <span style="margin-left:10px;font-size:11px;color:#8a94b0;font-weight:500;">← нажмите на группу</span>
+        </div>
+        <div id="nachGrpSelLabel" style="font-size:13px;font-weight:700;color:#e94fd0;"></div>
+      </div>
+      <div style="overflow-x:auto;overflow-y:hidden;height:240px;">
+        <canvas id="cNachGroups"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 5: Subjects -->
+    <div class="compare-card" id="nachSubjCard" style="display:none;">
+      <div class="compare-head">
+        <div class="compare-title" id="subjChartTitle">
+          Успеваемость по предметам
+          <span style="margin-left:10px;font-size:11px;color:#8a94b0;font-weight:500;">← нажмите на предмет</span>
+        </div>
+        <div id="subjSelLabel" style="font-size:13px;font-weight:700;color:#e94fd0;"></div>
+      </div>
+      <div class="compare-canvas-wrap"><canvas id="cSubjNach"></canvas></div>
+    </div>
+
+    <!-- Analytics section -->
+    <div style="font-size:18px;font-weight:800;color:#1b2550;">Аналитика</div>
+    <div class="dir-grid">
+      <!-- DZ donut -->
+      <div class="sp-card">
+        <div class="dir-card-head"><div class="dir-card-title">Выполнение ДЗ</div></div>
+        <div style="display:flex;align-items:center;gap:24px;height:220px;">
+          <div style="position:relative;width:180px;height:180px;flex-shrink:0;">
+            <canvas id="cHeadDZ" width="180" height="180"></canvas>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <div id="dzCenterPct" style="font-size:26px;font-weight:900;color:#1b2550">80%</div>
+              <div style="font-size:11px;color:#8a94b0;font-weight:600">выполнено</div>
+            </div>
+          </div>
+          <div id="headDzLegend" style="display:flex;flex-direction:column;gap:10px;flex:1;"></div>
+        </div>
+      </div>
+      <!-- Dynamics line -->
+      <div class="sp-card">
+        <div class="dir-card-head"><div class="dir-card-title">Динамика успеваемости</div></div>
+        <div class="dir-chart-wrap"><canvas id="cHeadDynamic"></canvas></div>
+      </div>
+      <!-- Problem topics -->
+      <div class="sp-card">
+        <div class="dir-card-head"><div class="dir-card-title">Проблемные темы</div></div>
+        <div class="dir-scroll-list" id="headProbList"></div>
+      </div>
+      <!-- Subjects attention -->
+      <div class="sp-card">
+        <div class="dir-card-head"><div class="dir-card-title">Предметы, требующие внимания</div></div>
+        <div id="headAttnList" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+    </div>
+
+    <!-- Rating section -->
+    <div id="nachRatingTitle" style="font-size:18px;font-weight:800;color:#1b2550;">Рейтинг районов</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="drill-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div id="nachRatingBestTitle" class="drill-title" style="margin-bottom:0;color:#12c99b;">Лучшие районы</div>
+        </div>
+        <div id="schoolBestListN"></div>
+      </div>
+      <div class="drill-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div id="nachRatingWorstTitle" class="drill-title" style="margin-bottom:0;color:#ff5a5f;">Требуют внимания</div>
+        </div>
+        <div id="schoolWorstListN"></div>
+      </div>
+    </div>
+
+    <!-- Drill table at bottom -->
+    <div class="drill-card">
+      <div class="dir-breadcrumb" id="headBreadcrumb"></div>
+      <div class="drill-title" id="drillTitle">Районы Андижанской области</div>
+      <div style="overflow-x:auto;">
+        <table class="dir-class-table">
+          <thead id="drillHead"></thead>
+          <tbody id="drillBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ===== ROLE GUARD ===== */
+(function(){
+  try{ var _r=localStorage.getItem('aibek_role'); if(_r!=='nachalnik'&&_r!=='head'){ window.location.href='index.html'; return; } }catch(e){}
+})();
+
+/* ===== URL PARAMS ===== */
+var _urlP = new URLSearchParams(location.search);
+var _region = _urlP.get('region') || 'and';
+
+/* ===== SIDEBAR TOGGLE ===== */
+(function(){
+  var sidebar=document.getElementById('sidebar');
+  var toggleBtn=document.getElementById('sbToggle');
+  var KEY='aibek_sidebar_collapsed';
+  function setSidebar(c){ sidebar.classList.toggle('collapsed',c); toggleBtn.title=c?'Развернуть меню':'Свернуть меню'; try{localStorage.setItem(KEY,c?'1':'0');}catch(e){} }
+  toggleBtn.addEventListener('click',function(){setSidebar(!sidebar.classList.contains('collapsed'));});
+  try{ if(localStorage.getItem(KEY)==='1') setSidebar(true); }catch(e){}
+})();
+
+/* ===== LOGOUT ===== */
+document.getElementById('logoutBtn').addEventListener('click', function(){
+  localStorage.removeItem('aibek_role');
+  window.location.href = 'index.html';
+});
+
+/* ===== DATA ===== */
+var DISTRICT_DATA_ALL = {
+  'kk': [{name:'Нукус',n:28000,dz:73,attn:4,trend:1,weak:'Физика'},{name:'Беруний',n:12000,dz:68,attn:6,trend:-1,weak:'Математика'},{name:'Чимбай',n:11000,dz:71,attn:5,trend:0,weak:'Физика'},{name:'Кунград',n:10500,dz:66,attn:7,trend:-1,weak:'Химия'},{name:'Муйнак',n:9000,dz:63,attn:9,trend:-1,weak:'Рус. язык'}],
+  'and': [{name:'Андижан',n:45000,dz:84,attn:3,trend:1,weak:'Химия'},{name:'Асака',n:22000,dz:82,attn:4,trend:1,weak:'Физика'},{name:'Балыкчи',n:18000,dz:79,attn:5,trend:0,weak:'Химия'},{name:'Шахрихан',n:24000,dz:83,attn:3,trend:1,weak:'Математика'},{name:'Олтинкол',n:16000,dz:77,attn:5,trend:0,weak:'Рус. язык'}],
+  'bux': [{name:'Бухара',n:38000,dz:77,attn:4,trend:1,weak:'Математика'},{name:'Каган',n:16000,dz:73,attn:5,trend:0,weak:'Физика'},{name:'Ромитан',n:13000,dz:71,attn:6,trend:-1,weak:'Химия'},{name:'Гиждуван',n:15000,dz:75,attn:5,trend:0,weak:'Математика'},{name:'Алат',n:11000,dz:68,attn:7,trend:-1,weak:'Рус. язык'}],
+  'djiz': [{name:'Жиззах',n:24000,dz:70,attn:6,trend:0,weak:'Рус. язык'},{name:'Арнасой',n:9000,dz:65,attn:8,trend:-1,weak:'Математика'},{name:'Бахмал',n:8500,dz:67,attn:7,trend:0,weak:'Физика'},{name:'Дустлик',n:11000,dz:69,attn:6,trend:1,weak:'Химия'},{name:'Зарбдор',n:9500,dz:66,attn:7,trend:-1,weak:'Рус. язык'}],
+  'qash': [{name:'Карши',n:52000,dz:79,attn:3,trend:1,weak:'Биология'},{name:'Шахрисабз',n:22000,dz:75,attn:5,trend:1,weak:'Химия'},{name:'Гузор',n:16000,dz:73,attn:5,trend:0,weak:'Биология'},{name:'Камаши',n:14000,dz:71,attn:6,trend:0,weak:'Физика'},{name:'Нишон',n:13000,dz:74,attn:4,trend:1,weak:'Математика'}],
+  'nav': [{name:'Навои',n:20000,dz:76,attn:4,trend:1,weak:'Физика'},{name:'Зарафшан',n:14000,dz:74,attn:5,trend:0,weak:'Физика'},{name:'Кармана',n:12000,dz:71,attn:6,trend:-1,weak:'Химия'},{name:'Хатырчи',n:11000,dz:69,attn:6,trend:0,weak:'Математика'},{name:'Канимех',n:10000,dz:72,attn:5,trend:1,weak:'Физика'}],
+  'nam': [{name:'Наманган',n:48000,dz:80,attn:3,trend:1,weak:'Химия'},{name:'Чуст',n:18000,dz:76,attn:5,trend:0,weak:'Математика'},{name:'Касансай',n:14000,dz:74,attn:5,trend:1,weak:'Химия'},{name:'Учкурган',n:16000,dz:77,attn:4,trend:1,weak:'Физика'},{name:'Туракурган',n:15000,dz:75,attn:4,trend:0,weak:'Рус. язык'}],
+  'sam': [{name:'Самарканд',n:62000,dz:83,attn:3,trend:1,weak:'Рус. язык'},{name:'Каттакурган',n:22000,dz:79,attn:4,trend:1,weak:'Химия'},{name:'Ургут',n:18000,dz:77,attn:4,trend:1,weak:'Физика'},{name:'Пайарик',n:16000,dz:76,attn:5,trend:0,weak:'Математика'},{name:'Нарпай',n:14000,dz:78,attn:3,trend:1,weak:'Рус. язык'}],
+  'sur': [{name:'Термез',n:38000,dz:72,attn:6,trend:0,weak:'Математика'},{name:'Денов',n:18000,dz:70,attn:7,trend:-1,weak:'Физика'},{name:'Шурчи',n:14000,dz:68,attn:7,trend:-1,weak:'Химия'},{name:'Бойсун',n:12000,dz:66,attn:8,trend:-1,weak:'Математика'},{name:'Кизирик',n:11000,dz:67,attn:7,trend:0,weak:'Рус. язык'}],
+  'sir': [{name:'Гулистан',n:22000,dz:74,attn:5,trend:1,weak:'Биология'},{name:'Янгиер',n:14000,dz:71,attn:6,trend:0,weak:'Математика'},{name:'Сырдарья',n:12000,dz:72,attn:5,trend:0,weak:'Физика'},{name:'Баяут',n:10000,dz:69,attn:6,trend:-1,weak:'Химия'},{name:'Сардоба',n:9000,dz:67,attn:7,trend:-1,weak:'Биология'}],
+  'tash': [{name:'Алмалык',n:48000,dz:84,attn:3,trend:1,weak:'Химия'},{name:'Ангрен',n:36000,dz:82,attn:3,trend:1,weak:'Физика'},{name:'Бекабад',n:28000,dz:80,attn:4,trend:1,weak:'Математика'},{name:'Нурафшон',n:22000,dz:81,attn:3,trend:1,weak:'Химия'},{name:'Чирчик',n:32000,dz:83,attn:3,trend:1,weak:'Физика'}],
+  'fer': [{name:'Фергана',n:58000,dz:81,attn:3,trend:1,weak:'Физика'},{name:'Маргилан',n:38000,dz:79,attn:4,trend:1,weak:'Химия'},{name:'Коканд',n:42000,dz:77,attn:4,trend:1,weak:'Математика'},{name:'Кува',n:16000,dz:75,attn:5,trend:0,weak:'Физика'},{name:'Язьяван',n:14000,dz:76,attn:4,trend:1,weak:'Рус. язык'}],
+  'xor': [{name:'Ургенч',n:36000,dz:73,attn:5,trend:0,weak:'Математика'},{name:'Хива',n:18000,dz:71,attn:6,trend:-1,weak:'Физика'},{name:'Питнак',n:12000,dz:68,attn:7,trend:-1,weak:'Химия'},{name:'Шаббоз',n:11000,dz:69,attn:6,trend:0,weak:'Математика'},{name:'Ханки',n:10000,dz:67,attn:7,trend:-1,weak:'Рус. язык'}],
+  'tsh': [{name:'Яккасарай',n:44000,dz:86,attn:2,trend:1,weak:'Рус. язык'},{name:'Мирзо-Улугбек',n:52000,dz:88,attn:2,trend:1,weak:'Химия'},{name:'Юнусабад',n:58000,dz:87,attn:2,trend:1,weak:'Физика'},{name:'Чиланзар',n:62000,dz:85,attn:3,trend:1,weak:'Математика'},{name:'Сергели',n:48000,dz:83,attn:3,trend:1,weak:'Рус. язык'}],
+};
+
+var DISTRICT_DATA = (DISTRICT_DATA_ALL[_region] || DISTRICT_DATA_ALL['and']).map(function(d,i){ return {key:_region+'_'+i,name:d.name,n:d.n,dz:d.dz,attn:d.attn,trend:d.trend,weak:d.weak}; });
+
+var SUBJECTS_LIST = ['Математика','Физика','Химия','Биология','Рус. язык','Англ. язык'];
+var SUBJ_SHORT    = ['Матем.','Физика','Химия','Биолог.','Рус. яз.','Англ. яз.'];
+var SUBJ_COLORS   = ['#3b5bff','#8b5cf6','#f94144','#22c55e','#f5a623','#18d8e8'];
+var SCH_SUBJ      = [82,74,68,79,65,81];
+var SCH_DZ        = [10,25,65];
+var SCH_DYN       = [70,72,69,74,76,73,78,75,79,77,80,82];
+
+var SCHOOL_DATA = {};
+DISTRICT_DATA.forEach(function(d,idx){
+  var schools=[];
+  for(var i=0;i<3;i++){
+    var dz=Math.max(50,Math.min(97,d.dz+(i===0?4:i===1?0:-6)));
+    schools.push({name:'Школа №'+((idx*3)+i+1),dz:dz,n:Math.round(d.n/7),attn:Math.max(0,d.attn+(i===2?2:i===1?0:-1)),trend:i===0?1:i===1?0:-1,_key:d.key+'_s'+i});
+  }
+  SCHOOL_DATA[d.key]=schools;
+});
+
+/* Per-district metrics */
+var DISTRICT_METRICS = {};
+DISTRICT_DATA.forEach(function(d){
+  var weakIdx=SUBJECTS_LIST.findIndex(function(s){return s===d.weak;});
+  if(weakIdx<0) weakIdx=0;
+  var subj=SUBJECTS_LIST.map(function(s,i){return Math.max(45,Math.min(97,SCH_SUBJ[i]+(i===weakIdx?-12:2)+(d.dz-76)));});
+  var dz=[Math.max(5,Math.round(SCH_DZ[0]+(76-d.dz)/4)),Math.max(15,Math.round(SCH_DZ[1]+(76-d.dz)/6)),0];
+  dz[2]=100-dz[0]-dz[1];
+  var dyn=SCH_DYN.map(function(v,i){return Math.max(45,Math.min(98,v+(d.dz-75)+(i%3-1)*2));});
+  DISTRICT_METRICS[d.key]={avgDz:d.dz,subj:subj,dz:dz,dyn:dyn};
+});
+
+/* Per-school metrics */
+var SCHOOL_METRICS = {};
+Object.keys(SCHOOL_DATA).forEach(function(dk){
+  SCHOOL_DATA[dk].forEach(function(s,si){
+    var distM=DISTRICT_METRICS[dk]||{subj:SCH_SUBJ,dz:SCH_DZ,dyn:SCH_DYN};
+    var subj=distM.subj.map(function(v,i){return Math.max(45,Math.min(97,v+(s.dz-80)+((si*5+i*3)%9)-4));});
+    var dz=[Math.max(5,Math.min(25,SCH_DZ[0]+si*2)),Math.max(15,Math.min(40,SCH_DZ[1]+si*3-2)),0];
+    dz[2]=100-dz[0]-dz[1];
+    var dyn=SCH_DYN.map(function(v,i){return Math.max(45,Math.min(98,v+(s.dz-75)+(i%3-1)*2));});
+    SCHOOL_METRICS[s._key]={avgDz:s.dz,subj:subj,dz:dz,dyn:dyn};
+  });
+});
+
+/* ===== BAR LABEL PLUGIN ===== */
+var BAR_LABEL_PLUGIN={id:'barLabels',afterDatasetsDraw:function(chart){
+  var ctx=chart.ctx;
+  chart.data.datasets.forEach(function(ds,di){
+    var meta=chart.getDatasetMeta(di);
+    if(meta.hidden) return;
+    meta.data.forEach(function(bar,idx){
+      var val=ds.data[idx];
+      if(val===null||val===undefined) return;
+      ctx.save();
+      ctx.font='700 12px Inter,sans-serif'; ctx.fillStyle='#1b2550';
+      ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ctx.fillText(val,bar.x,bar.y-2);
+      ctx.restore();
+    });
+  });
+}};
+
+/* ===== CLASS/GROUP CONSTANTS ===== */
+var GRADE_NAMES=['1','2','3','4','5','6','7','8','9','10','11'];
+var GROUP_LETTERS=['А','Б'];
+
+/* ===== FILTER STATE ===== */
+var DF={district:null,school:null,grade:null,group:null,subject:null};
+var CD={dist:null,schools:null,classes:null,groups:null,subj:null,dz:null,dyn:null};
+
+/* ===== HELPERS ===== */
+function dzSt(v){ return v>=80?['hi','Хороший']:v>=60?['mid','Средний']:['lo','Слабо']; }
+function trendIcon(t){ return t===1?'<span class="dir-trend-up">↑</span>':t===-1?'<span class="dir-trend-dn">↓</span>':'<span style="color:#8a94b0">→</span>'; }
+function scoreColor(d){ return d>=80?'#12c99b':d>=70?'#3b5bff':d>=60?'#f5a623':'#ff5a5f'; }
+function fmtN(n){ return n>=1000?(n/1000).toFixed(0)+'K':String(n); }
+function hexToRgba(hex,alpha){ var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return 'rgba('+r+','+g+','+b+','+alpha+')'; }
+function dimColors(colors,activeIdx){
+  return colors.map(function(c,i){
+    if(activeIdx===null||activeIdx===undefined||activeIdx<0) return c;
+    return i===activeIdx?c:hexToRgba(c,0.22);
+  });
+}
+function allSchools(){ return [].concat.apply([],DISTRICT_DATA.map(function(d){return SCHOOL_DATA[d.key]||[];})); }
+
+/* ===== TOGGLE FUNCTIONS ===== */
+function toggleDistrict(key){
+  DF.district=DF.district===key?null:key;
+  DF.school=null; DF.grade=null; DF.group=null; DF.subject=null;
+  refreshAll();
+}
+function toggleSchool(key){
+  DF.school=DF.school===key?null:key;
+  DF.grade=null; DF.group=null; DF.subject=null;
+  refreshAll();
+}
+function toggleGrade(g){
+  DF.grade=DF.grade===g?null:g;
+  DF.group=null;
+  refreshAll();
+}
+function toggleGroup(key){
+  DF.group=DF.group===key?null:key;
+  refreshAll();
+}
+function toggleSubject(name){
+  DF.subject=DF.subject===name?null:name;
+  refreshAll();
+}
+window.toggleDistrict=toggleDistrict;
+window.toggleSchool=toggleSchool;
+window.toggleGrade=toggleGrade;
+window.toggleGroup=toggleGroup;
+window.toggleSubject=toggleSubject;
+
+function getScope(){ if(DF.school) return{type:'school',val:DF.school}; if(DF.district) return{type:'district',val:DF.district}; return{type:'region'}; }
+function getScopeMetrics(){
+  var s=getScope();
+  if(s.type==='school') return SCHOOL_METRICS[s.val]||{avgDz:80,subj:SCH_SUBJ,dz:SCH_DZ,dyn:SCH_DYN};
+  if(s.type==='district') return DISTRICT_METRICS[s.val]||{avgDz:80,subj:SCH_SUBJ,dz:SCH_DZ,dyn:SCH_DYN};
+  var avgDz=Math.round(DISTRICT_DATA.reduce(function(a,d){return a+d.dz;},0)/DISTRICT_DATA.length);
+  var subj=SUBJECTS_LIST.map(function(sv,i){return Math.max(48,Math.min(97,SCH_SUBJ[i]+(avgDz-76)));});
+  return{avgDz:avgDz,subj:subj,dz:SCH_DZ,dyn:SCH_DYN};
+}
+
+/* ===== STAT CARDS ===== */
+function updateStatCards(){
+  var totalN=DISTRICT_DATA.reduce(function(a,d){return a+d.n;},0);
+  var avgDz=Math.round(DISTRICT_DATA.reduce(function(a,d){return a+d.dz;},0)/DISTRICT_DATA.length);
+  var totalAttn=allSchools().reduce(function(a,s){return a+s.attn;},0);
+  document.getElementById('statStudents').textContent=fmtN(totalN);
+  document.getElementById('statDZ').textContent=avgDz;
+  document.getElementById('statAttn').textContent=totalAttn;
+}
+
+/* ===== CHIPS ===== */
+function renderChips(){
+  var chips=[];
+  if(DF.district){
+    var d=DISTRICT_DATA.find(function(x){return x.key===DF.district;});
+    chips.push({label:'Район: '+(d?d.name:'?'),fn:'toggleDistrict(\''+DF.district+'\')'});
+  }
+  if(DF.school){
+    var sc=allSchools().find(function(x){return x._key===DF.school;});
+    chips.push({label:'Школа: '+(sc?sc.name:'?'),fn:'toggleSchool(\''+DF.school+'\')'});
+  }
+  if(DF.grade!==null) chips.push({label:'Класс: '+DF.grade,fn:'toggleGrade('+DF.grade+')'});
+  if(DF.group) chips.push({label:'Группа: '+DF.group,fn:'toggleGroup(\''+DF.group+'\')'});
+  if(DF.subject) chips.push({label:'Предмет: '+DF.subject,fn:'toggleSubject(\''+DF.subject+'\')'});
+  var el=document.getElementById('nachalnikChips');
+  if(!chips.length){el.innerHTML='';return;}
+  el.innerHTML=chips.map(function(c){
+    return '<span onclick="'+c.fn+'" style="display:inline-flex;align-items:center;gap:6px;padding:5px 13px;background:#e94fd0;color:#fff;border-radius:99px;font-size:12px;font-weight:700;cursor:pointer;">'
+      +c.label+' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>';
+  }).join('');
+  var dl=document.getElementById('distSelLabel');
+  if(dl){ var d2=DF.district?DISTRICT_DATA.find(function(x){return x.key===DF.district;}):null; dl.textContent=d2?d2.name+' выбран':''; }
+  var sl=document.getElementById('schoolSelLabel');
+  if(sl){ var sc2=DF.school?allSchools().find(function(x){return x._key===DF.school;}):null; sl.textContent=sc2?'Выбрано: '+sc2.name:''; }
+  var cl=document.getElementById('nachClsSelLabel');
+  if(cl) cl.textContent=DF.grade!==null?(DF.grade+' класс выбран'):'';
+  var grpl=document.getElementById('nachGrpSelLabel');
+  if(grpl) grpl.textContent=DF.group?('Выбрано: '+DF.group):'';
+  var svl=document.getElementById('subjSelLabel');
+  if(svl) svl.textContent=DF.subject?'Выбрано: '+DF.subject:'';
+}
+
+/* ===== CHART 1: DISTRICTS ===== */
+function renderChartDistricts(){
+  var titleEl = document.getElementById('distTitle');
+  if(titleEl) titleEl.textContent = 'Успеваемость по районам (' + (regionNames[_region]||_region) + ')';
+  var labels=DISTRICT_DATA.map(function(d){return d.name;});
+  var data=DISTRICT_DATA.map(function(d){return d.dz;});
+  var activeIdx=DF.district?DISTRICT_DATA.findIndex(function(d){return d.key===DF.district;}):-1;
+  var base=data.map(scoreColor);
+  var colors=dimColors(base,activeIdx>=0?activeIdx:null);
+  if(CD.dist){CD.dist.destroy();CD.dist=null;}
+  CD.dist=new Chart(document.getElementById('cDistricts').getContext('2d'),{
+    type:'bar',
+    plugins:[BAR_LABEL_PLUGIN],
+    data:{labels:labels,datasets:[{data:data,backgroundColor:colors,hoverBackgroundColor:base,borderRadius:8,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      onClick:function(ev,els){ if(!els.length) return; toggleDistrict(DISTRICT_DATA[els[0].index].key); },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' Балл: '+ctx.parsed.y;}}}},
+      scales:{y:{min:50,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#3a4256',font:{size:13,weight:'600'}}}}
+    }
+  });
+}
+
+/* ===== CHART 2: SCHOOLS ===== */
+function renderChartSchools(){
+  var card=document.getElementById('nachSchoolsCard');
+  if(card) card.style.display=DF.district!==null?'block':'none';
+  if(DF.district===null) return;
+  var schools,titleText;
+  if(DF.district){
+    schools=SCHOOL_DATA[DF.district]||[];
+    var d=DISTRICT_DATA.find(function(x){return x.key===DF.district;});
+    titleText='Успеваемость по школам — <strong>'+(d?d.name:'')+'</strong>';
+  } else {
+    schools=allSchools();
+    titleText='Успеваемость по школам';
+  }
+  document.getElementById('schoolsChartTitle').innerHTML=titleText+'<span style="margin-left:10px;font-size:11px;color:#8a94b0;font-weight:500;">← нажмите на школу</span>';
+  var labels=schools.map(function(s){return s.name;});
+  var data=schools.map(function(s){return s.dz;});
+  var activeIdx=DF.school?schools.findIndex(function(s){return s._key===DF.school;}):-1;
+  var base=data.map(scoreColor);
+  var colors=dimColors(base,activeIdx>=0?activeIdx:null);
+  if(CD.schools){CD.schools.destroy();CD.schools=null;}
+  CD.schools=new Chart(document.getElementById('cSchoolsNach').getContext('2d'),{
+    type:'bar',
+    plugins:[BAR_LABEL_PLUGIN],
+    data:{labels:labels,datasets:[{data:data,backgroundColor:colors,hoverBackgroundColor:base,borderRadius:8,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      onClick:function(ev,els){ if(!els.length) return; toggleSchool(schools[els[0].index]._key); },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' Балл: '+ctx.parsed.y;}}}},
+      scales:{y:{min:50,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#3a4256',font:{size:11,weight:'600'},maxRotation:30}}}
+    }
+  });
+}
+
+/* ===== CHART 3: CLASSES (grades 1-11) ===== */
+function renderChartClasses(){
+  var card=document.getElementById('nachClassesCard');
+  if(card) card.style.display=DF.school?'block':'none';
+  if(!DF.school) return;
+  if(CD.classes){CD.classes.destroy();CD.classes=null;}
+  var wrap=document.querySelector('#nachClassesCard div[style*="height:240px"]');
+  if(wrap) wrap.innerHTML='<canvas id="cNachClasses"></canvas>';
+  var canvas=document.getElementById('cNachClasses');
+  if(!canvas) return;
+
+  var sch=allSchools().find(function(s){return s._key===DF.school;});
+  var baseDz=sch?sch.dz:75;
+  var grades=GRADE_NAMES.map(function(g,gi){
+    var dz=Math.max(55,Math.min(95,baseDz+((gi*3)%11)-5));
+    return{grade:parseInt(g),dz:dz};
+  });
+
+  var title='Успеваемость по классам — '+(sch?sch.name:'');
+  var titleEl=document.getElementById('nachClsChartTitle');
+  if(titleEl) titleEl.innerHTML=title+'<span style="margin-left:10px;font-size:11px;color:#8a94b0;font-weight:500;">← нажмите на класс</span>';
+
+  canvas.style.width='100%'; canvas.style.height='220px';
+  var labels=grades.map(function(g){return g.grade+' кл';});
+  var data=grades.map(function(g){return g.dz;});
+  var base=data.map(scoreColor);
+  var activeIdx=DF.grade!==null?grades.findIndex(function(g){return g.grade===DF.grade;}):-1;
+  var colors=dimColors(base,activeIdx>=0?activeIdx:null);
+
+  CD.classes=new Chart(canvas.getContext('2d'),{
+    type:'bar',plugins:[BAR_LABEL_PLUGIN],
+    data:{labels:labels,datasets:[{data:data,backgroundColor:colors,hoverBackgroundColor:base,borderRadius:7,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      onClick:function(ev,els){if(!els.length) return; toggleGrade(grades[els[0].index].grade);},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' Балл: '+ctx.parsed.y;}}}},
+      scales:{y:{min:50,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#3a4256',font:{size:11,weight:'600'},maxRotation:0}}}
+    }
+  });
+}
+
+/* ===== CHART 4: GROUPS ===== */
+function renderChartGroups(){
+  var card=document.getElementById('nachGroupsCard');
+  if(card) card.style.display=(DF.school&&DF.grade!==null)?'block':'none';
+  if(!DF.school||DF.grade===null) return;
+  if(CD.groups){CD.groups.destroy();CD.groups=null;}
+  var wrap=document.querySelector('#nachGroupsCard div[style*="height:240px"]');
+  if(wrap) wrap.innerHTML='<canvas id="cNachGroups"></canvas>';
+  var canvas=document.getElementById('cNachGroups');
+  if(!canvas) return;
+
+  var sch=allSchools().find(function(s){return s._key===DF.school;});
+  var baseDz=sch?sch.dz:75;
+  var groups=GROUP_LETTERS.map(function(l,li){
+    var dz=Math.max(55,Math.min(95,baseDz+((DF.grade*2+li)*3)%11-5));
+    return{group:DF.grade+l,dz:dz};
+  });
+
+  var title='Успеваемость по группам — '+DF.grade+' класс'+(sch?' ('+sch.name+')':'');
+  var titleEl=document.getElementById('nachGrpChartTitle');
+  if(titleEl) titleEl.innerHTML=title+'<span style="margin-left:10px;font-size:11px;color:#8a94b0;font-weight:500;">← нажмите на группу</span>';
+
+  canvas.style.width='100%'; canvas.style.height='220px';
+  var labels=groups.map(function(g){return g.group;});
+  var data=groups.map(function(g){return g.dz;});
+  var base=data.map(scoreColor);
+  var activeIdx=DF.group?groups.findIndex(function(g){return g.group===DF.group;}):-1;
+  var colors=dimColors(base,activeIdx>=0?activeIdx:null);
+
+  CD.groups=new Chart(canvas.getContext('2d'),{
+    type:'bar',plugins:[BAR_LABEL_PLUGIN],
+    data:{labels:labels,datasets:[{data:data,backgroundColor:colors,hoverBackgroundColor:base,borderRadius:7,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      onClick:function(ev,els){if(!els.length) return; toggleGroup(groups[els[0].index].group);},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' Балл: '+ctx.parsed.y;}}}},
+      scales:{y:{min:50,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#3a4256',font:{size:12,weight:'600'},maxRotation:0}}}
+    }
+  });
+}
+
+/* ===== CHART 5: SUBJECTS ===== */
+function renderChartSubjects(){
+  var card=document.getElementById('nachSubjCard');
+  if(card) card.style.display=DF.grade!==null?'block':'none';
+  if(DF.grade===null) return;
+  var m=getScopeMetrics();
+  var scope=getScope();
+  var titleText='Успеваемость по предметам';
+  if(scope.type==='school'){ var sc=allSchools().find(function(x){return x._key===scope.val;}); if(sc) titleText+=' — '+sc.name; }
+  else if(scope.type==='district'){ var d=DISTRICT_DATA.find(function(x){return x.key===scope.val;}); if(d) titleText+=' — '+d.name; }
+  document.getElementById('subjChartTitle').innerHTML=titleText+'<span style="margin-left:10px;font-size:11px;color:#8a94b0;font-weight:500;">← нажмите на предмет</span>';
+  var activeIdx=DF.subject?SUBJECTS_LIST.indexOf(DF.subject):-1;
+  var base=SUBJ_COLORS.slice();
+  var colors=dimColors(base,activeIdx>=0?activeIdx:null);
+  if(CD.subj){CD.subj.destroy();CD.subj=null;}
+  CD.subj=new Chart(document.getElementById('cSubjNach').getContext('2d'),{
+    type:'bar',
+    plugins:[BAR_LABEL_PLUGIN],
+    data:{labels:SUBJ_SHORT,datasets:[{data:m.subj,backgroundColor:colors,hoverBackgroundColor:base,borderRadius:8,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      onClick:function(ev,els){ if(!els.length) return; toggleSubject(SUBJECTS_LIST[els[0].index]); },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' Балл: '+ctx.parsed.y;}}}},
+      scales:{y:{min:40,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#3a4256',font:{size:12,weight:'600'}}}}
+    }
+  });
+}
+
+/* ===== RATING LISTS ===== */
+function renderRatings(){
+  var items, titleText, bestTitle, worstTitle;
+
+  if(DF.school){
+    titleText='Рейтинг классов';
+    bestTitle='Лучшие классы'; worstTitle='Слабые классы';
+    var sch=allSchools().find(function(s){return s._key===DF.school;});
+    var baseDz=sch?sch.dz:75;
+    items=[];
+    GRADE_NAMES.forEach(function(g,gi){
+      GROUP_LETTERS.forEach(function(l,li){
+        var dz=Math.max(55,Math.min(95,baseDz+((gi*2+li)*3)%11-5));
+        items.push({name:g+l,dz:dz,sub:g+' класс',trend:dz>baseDz+2?1:dz<baseDz-2?-1:0});
+      });
+    });
+  } else if(DF.district){
+    titleText='Рейтинг школ';
+    bestTitle='Лучшие школы'; worstTitle='Требуют внимания';
+    items=(SCHOOL_DATA[DF.district]||[]).map(function(s){
+      return{name:s.name,dz:s.dz,sub:fmtN(s.n)+' уч. · Внимания: '+s.attn,trend:s.trend};
+    });
+  } else {
+    titleText='Рейтинг районов';
+    bestTitle='Лучшие районы'; worstTitle='Требуют внимания';
+    items=DISTRICT_DATA.map(function(d){
+      return{name:d.name,dz:d.dz,sub:fmtN(d.n)+' уч. · Внимания: '+d.attn,trend:d.trend};
+    });
+  }
+
+  var sorted=items.slice().sort(function(a,b){return b.dz-a.dz;});
+  var best=sorted.slice(0,10), worst=sorted.slice(-10).reverse();
+
+  document.getElementById('nachRatingTitle').textContent=titleText;
+  document.getElementById('nachRatingBestTitle').textContent=bestTitle;
+  document.getElementById('nachRatingWorstTitle').textContent=worstTitle;
+
+  function row(item,rank,isBest){
+    var medal=rank===1?(isBest?'🥇':'🔴'):rank===2?(isBest?'🥈':'🟠'):rank===3?(isBest?'🥉':'🟡'):'';
+    var sc=scoreColor(item.dz);
+    var tr=item.trend===1?'<span style="color:#12c99b;font-size:11px;">↑</span>':item.trend===-1?'<span style="color:#ff5a5f;font-size:11px;">↓</span>':'<span style="color:#8899bb;font-size:11px;">→</span>';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f2fa;">'
+      +'<div style="width:22px;text-align:center;font-size:13px;font-weight:800;color:#8899bb;">'+(medal||rank)+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:13px;font-weight:700;color:#1b2550;">'+item.name+' '+tr+'</div>'
+        +'<div style="font-size:11px;color:#8899bb;">'+item.sub+'</div>'
+      +'</div>'
+      +'<div style="font-size:16px;font-weight:800;color:'+sc+';">'+item.dz+'</div>'
+    +'</div>';
+  }
+  function buildList(list,containerId,isBest){
+    var visible=list.slice(0,3),hidden=list.slice(3);
+    var html=visible.map(function(r,i){return row(r,i+1,isBest);}).join('');
+    if(hidden.length){
+      html+='<div id="'+containerId+'Extra" style="display:none;">'+hidden.map(function(r,i){return row(r,i+4,isBest);}).join('')+'</div>';
+      html+='<button onclick="(function(){var e=document.getElementById(\''+containerId+'Extra\');var b=document.getElementById(\''+containerId+'Btn\');var h=e.style.display===\'none\';e.style.display=h?\'block\':\'none\';b.textContent=h?\'Свернуть ▲\':\'Показать ещё →\';})()" id="'+containerId+'Btn" style="margin-top:8px;font-size:12px;font-weight:700;color:#3b5bff;background:none;border:none;cursor:pointer;padding:4px 0;display:block;">Показать ещё →</button>';
+    }
+    document.getElementById(containerId).innerHTML=html;
+  }
+  buildList(best,'schoolBestListN',true);
+  buildList(worst,'schoolWorstListN',false);
+}
+
+/* ===== ANALYTICS ===== */
+function renderAnalytics(){
+  var m=getScopeMetrics();
+  var DZ_LABELS=['Слабо (0–59)','Средне (60–79)','Хорошо (80–100)'];
+  var DZ_COLORS=['#ff5a5f','#f5a623','#12c99b'];
+  if(CD.dz){CD.dz.destroy();CD.dz=null;}
+  CD.dz=new Chart(document.getElementById('cHeadDZ').getContext('2d'),{
+    type:'doughnut',
+    data:{labels:DZ_LABELS,datasets:[{data:m.dz,backgroundColor:DZ_COLORS,borderWidth:2,borderColor:'#fff',hoverOffset:5}]},
+    options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' '+ctx.label+': '+ctx.parsed+'%';}}}}}
+  });
+  document.getElementById('dzCenterPct').textContent=m.dz[2]+'%';
+  document.getElementById('headDzLegend').innerHTML=DZ_LABELS.map(function(l,i){
+    return '<div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:'+DZ_COLORS[i]+';flex-shrink:0;"></span><span style="font-size:12.5px;font-weight:600;color:#3a4256;flex:1">'+l+'</span><span style="font-size:13px;font-weight:800;color:#1b2550">'+m.dz[i]+'%</span></div>';
+  }).join('');
+  if(CD.dyn){CD.dyn.destroy();CD.dyn=null;}
+  CD.dyn=new Chart(document.getElementById('cHeadDynamic').getContext('2d'),{
+    type:'line',
+    data:{labels:MONTHS,datasets:[{data:m.dyn,borderColor:'#e94fd0',backgroundColor:'#e94fd022',borderWidth:2.5,fill:true,tension:0.4,pointRadius:4,pointHoverRadius:7,pointBackgroundColor:'#e94fd0'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' Балл: '+ctx.parsed.y;}}}},
+      scales:{y:{min:40,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#8a94b0',font:{size:11}}}}}
+  });
+  var probs=[
+    {subj:'Математика',color:'#3b5bff',topics:[{n:'Тригонометрия',p:72},{n:'Интегралы',p:65},{n:'Производные',p:58}]},
+    {subj:'Физика',color:'#8b5cf6',topics:[{n:'Квантовая механика',p:69},{n:'Оптика',p:57},{n:'Термодинамика',p:52}]},
+    {subj:'Химия',color:'#f94144',topics:[{n:'Хим. равновесие',p:63},{n:'Электролиз',p:55},{n:'Орг. соединения',p:51}]},
+    {subj:'Биология',color:'#22c55e',topics:[{n:'Генетика',p:67},{n:'Эволюция',p:60},{n:'Митоз и мейоз',p:55}]},
+    {subj:'Русский язык',color:'#f5a623',topics:[{n:'Пунктуация',p:71},{n:'Причастные обороты',p:64},{n:'Синтаксис',p:58}]},
+    {subj:'Англ. язык',color:'#18d8e8',topics:[{n:'Фразовые глаголы',p:69},{n:'Условные предложения',p:62},{n:'Артикли',p:55}]},
+  ];
+  var filtP=DF.subject?probs.filter(function(s){return s.subj===DF.subject||s.subj.startsWith(DF.subject.slice(0,4));}):probs;
+  document.getElementById('headProbList').innerHTML=filtP.map(function(s){
+    return '<div class="dir-prob-subj">'+s.subj+'</div>'+s.topics.map(function(t){
+      return '<div class="dir-prob-row"><div class="dir-prob-name">'+t.n+'</div><div class="dir-prob-bar-bg"><div class="dir-prob-bar" style="width:'+t.p+'%;background:'+s.color+'"></div></div><div class="dir-prob-pct">'+t.p+'%</div></div>';
+    }).join('');
+  }).join('');
+  var attnSubjs=[{name:'Русский язык',sc:65,prev:68},{name:'Химия',sc:68,prev:65},{name:'Физика',sc:74,prev:76},{name:'Биология',sc:79,prev:77}];
+  var filtA=DF.subject?attnSubjs.filter(function(s){return s.name===DF.subject||s.name.startsWith(DF.subject.slice(0,4));}):attnSubjs;
+  document.getElementById('headAttnList').innerHTML=filtA.map(function(s){
+    var up=s.sc>=s.prev; var cls=s.sc<70?'lo':'mid'; var lbl=s.sc<70?'Требует внимания':'Средний';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;background:#fff8f8;">'
+      +'<div style="font-size:13.5px;font-weight:700;color:#1b2550;flex:1;">'+s.name+'</div>'
+      +'<div style="font-size:13px;font-weight:800;color:'+(s.sc<70?'#ff5a5f':'#f5a623')+'">'+s.sc+'</div>'
+      +'<span class="sp-badge '+cls+'">'+lbl+'</span>'
+      +'<span style="font-size:14px;font-weight:800;color:'+(up?'#12c99b':'#ff5a5f')+'">'+(up?'↑':'↓')+'</span>'
+    +'</div>';
+  }).join('');
+}
+
+/* ===== TABLE ===== */
+function renderTable(){
+  if(!DF.district){
+    document.getElementById('headBreadcrumb').innerHTML='';
+    document.getElementById('drillTitle').textContent='Районы региона';
+    document.getElementById('drillHead').innerHTML='<tr><th>Район</th><th>Учеников</th><th>Ср. балл ДЗ</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
+    document.getElementById('drillBody').innerHTML=DISTRICT_DATA.map(function(d){
+      var st=dzSt(d.dz);
+      return '<tr onclick="window.location.href=\'zav.html?region='+_region+'&district='+DISTRICT_DATA.indexOf(d)+'\'" style="cursor:pointer;">'
+        +'<td><span class="dir-class-name">'+d.name+'</span></td>'
+        +'<td>'+fmtN(d.n)+'</td><td><strong>'+d.dz+'</strong></td>'
+        +'<td><span class="sp-badge '+st[0]+'">'+st[1]+'</span></td>'
+        +'<td style="color:#8a94b0">'+d.weak+'</td>'
+        +'<td><span class="dir-attn-count">'+d.attn+'</span></td>'
+        +'<td>'+trendIcon(d.trend)+'</td>'
+      +'</tr>';
+    }).join('');
+  } else {
+    var d=DISTRICT_DATA.find(function(x){return x.key===DF.district;});
+    var schools=SCHOOL_DATA[DF.district]||[];
+    document.getElementById('headBreadcrumb').innerHTML=
+      '<a onclick="toggleDistrict(\''+DF.district+'\')" style="cursor:pointer;color:#3b5bff;">Все районы</a>'
+      +' <span class="sep">/</span> <span>'+(d?d.name:'')+'</span>';
+    document.getElementById('drillTitle').textContent=(d?d.name:'')+' — школы';
+    document.getElementById('drillHead').innerHTML='<tr><th>Школа</th><th>Учеников</th><th>Ср. балл ДЗ</th><th>Статус</th><th>Требуют внимания</th><th>Динамика</th></tr>';
+    document.getElementById('drillBody').innerHTML=schools.map(function(s){
+      var st=dzSt(s.dz);
+      return '<tr onclick="toggleSchool(\''+s._key+'\')">'
+        +'<td><span class="dir-class-name">'+s.name+'</span></td>'
+        +'<td>'+fmtN(s.n)+'</td><td><strong>'+s.dz+'</strong></td>'
+        +'<td><span class="sp-badge '+st[0]+'">'+st[1]+'</span></td>'
+        +'<td><span class="dir-attn-count">'+s.attn+'</span></td>'
+        +'<td>'+trendIcon(s.trend)+'</td>'
+      +'</tr>';
+    }).join('');
+  }
+}
+
+/* ===== REFRESH ALL ===== */
+function refreshAll(){
+  renderChips();
+  renderChartDistricts();
+  renderChartSchools();
+  renderChartClasses();
+  renderChartGroups();
+  renderChartSubjects();
+  renderRatings();
+  renderAnalytics();
+  renderTable();
+}
+
+/* ===== INIT ===== */
+var regionNames = {'kk':'Респ. Каракалпакстан','and':'Андижанская обл.','bux':'Бухарская обл.','djiz':'Джизакская обл.','qash':'Кашкадарьинская обл.','nav':'Навоийская обл.','nam':'Наманганская обл.','sam':'Самаркандская обл.','sur':'Сурхандарьинская обл.','sir':'Сырдарьинская обл.','tash':'Ташкентская обл.','fer':'Ферганская обл.','xor':'Хорезмская обл.','tsh':'г. Ташкент'};
+function _nachalnikInit(){
+  var rn = regionNames[_region] || _region;
+  document.getElementById('nachTopbarTitle').textContent = 'Аналитика по ' + rn;
+  document.title = 'AI-BEK · ' + rn;
+  updateStatCards(); refreshAll();
+}
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',_nachalnikInit);
+} else { _nachalnikInit(); }
+</script>
+<script src="sidebar.js"></script>
+</body>
+</html>

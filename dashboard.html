@@ -1,0 +1,3267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI-BEK · Аналитический дашборд</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --blue:#3b5bff; --blue-deep:#2f4bff; --violet:#8b5cf6; --cyan:#18d8e8;
+    --teal:#12c99b; --pink:#e94fd0; --red:#ff3b3b; --amber:#f5a623; --ink:#121524;
+    --muted:#8a91a6; --line:#eef0f6; --page:#f6f8fc; --card:#ffffff;
+    --lav:#c9cbff; --shadow:0 8px 26px rgba(28,40,90,.06); --radius:20px;
+    --sb:#3f5dfb; --sb2:#3a52ec; --side-w:272px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    background:var(--sb); color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ===== App shell ===== */
+  .app{display:flex;min-height:100vh;}
+  .sidebar{
+    width:var(--side-w);flex-shrink:0;position:sticky;top:0;height:100vh;
+    background:linear-gradient(185deg,var(--sb),var(--sb2));
+    display:flex;flex-direction:column;padding:26px 20px 22px;color:#fff;
+    overflow:visible;transition:width .3s ease,padding .3s ease;
+  }
+  .sb-brand{display:flex;align-items:center;gap:3px;font-size:27px;font-weight:800;
+    letter-spacing:.5px;padding:4px 8px 26px;overflow:hidden;white-space:nowrap;}
+  .sb-brand .ai{color:#fff;transition:opacity .2s;}
+  .sb-brand .bek{color:#fff;transition:opacity .2s;}
+  .sb-nav{display:flex;flex-direction:column;gap:6px;flex:1;overflow:hidden;}
+  .sb-link{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:14px;
+    color:rgba(255,255,255,.86);font-size:15px;font-weight:600;cursor:pointer;
+    transition:background .15s,color .15s,padding .3s,justify-content .3s;text-decoration:none;white-space:nowrap;}
+  .sb-link svg{width:21px;height:21px;flex-shrink:0;stroke-width:2;}
+  .sb-link span{transition:opacity .2s;}
+  .sb-link:hover{background:rgba(255,255,255,.13);color:#fff;}
+  .sb-link.active{background:#fff;color:var(--blue);font-weight:700;box-shadow:0 10px 22px rgba(20,30,80,.18);}
+
+  /* Кнопка-тоггл */
+  .sb-toggle{position:absolute;top:26px;right:16px;width:26px;height:26px;border-radius:8px;
+    border:none;background:rgba(255,255,255,.18);cursor:pointer;color:#fff;
+    display:flex;align-items:center;justify-content:center;transition:background .15s;z-index:2;}
+  .sb-toggle:hover{background:rgba(255,255,255,.3);}
+  .sb-toggle svg{width:14px;height:14px;transition:transform .3s;}
+
+  /* Футер сайдбара — робот + кнопка выйти */
+  .sb-foot{margin-top:8px;display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .sb-mascot{width:160px;max-width:100%;height:auto;display:block;
+    border-radius:0;object-fit:contain;transition:opacity .2s,width .3s;}
+  .sb-logout{width:46px;height:46px;border-radius:14px;border:none;flex-shrink:0;
+    background:#fff;color:var(--red);display:flex;align-items:center;justify-content:center;cursor:pointer;
+    box-shadow:0 10px 22px rgba(20,30,80,.18);transition:transform .15s;}
+  .sb-logout:hover{transform:translateY(-2px);}
+
+  /* ===== COLLAPSED SIDEBAR ===== */
+  .sidebar.collapsed{width:72px;padding:26px 8px 22px;overflow:hidden;}
+  .sidebar.collapsed .sb-brand{padding:4px 4px 26px;justify-content:center;}
+  .sidebar.collapsed .sb-brand .ai,.sidebar.collapsed .sb-brand .bek{display:none;}
+  .sidebar.collapsed .sb-brand::after{content:'AB';font-size:18px;font-weight:900;color:#fff;}
+  .sidebar.collapsed .sb-toggle{right:auto;left:50%;transform:translateX(-50%);}
+  .sidebar.collapsed .sb-toggle svg{transform:rotate(180deg);}
+  .sidebar.collapsed .sb-role-btn{justify-content:center;padding:10px;}
+  .sidebar.collapsed .rb-lbl,.sidebar.collapsed .rb-chev{display:none;}
+  .sidebar.collapsed .sb-role-pop{position:fixed;left:72px;right:auto;width:220px;top:80px;border-radius:14px;}
+  .sidebar.collapsed .sb-link{padding:12px;justify-content:center;gap:0;}
+  .sidebar.collapsed .sb-link span{display:none;}
+  .sidebar.collapsed .sb-mascot{width:52px;opacity:.7;}
+  .sidebar.collapsed .sb-logout{margin:0 auto;}
+  /* Non-collapsed: allow popup to overflow sidebar */
+  .sidebar:not(.collapsed){overflow:visible;}
+  .sidebar:not(.collapsed) .sb-nav,.sidebar:not(.collapsed) .sb-foot{overflow:hidden;}
+
+  .main{flex:1;min-width:0;background:var(--page);border-top-left-radius:38px;
+    padding:24px 34px 40px;display:flex;flex-direction:column;gap:24px;position:relative;overflow:hidden;}
+
+  /* ===== Top bar ===== */
+  .topbar{display:flex;align-items:center;justify-content:flex-end;gap:18px;}
+  .tb-flag{width:42px;height:42px;border-radius:50%;overflow:hidden;flex-shrink:0;
+    box-shadow:0 4px 12px rgba(28,40,90,.12);display:flex;}
+  .tb-flag svg{width:100%;height:100%;}
+  .tb-sep{width:1px;height:30px;background:#dfe3ee;}
+  .tb-user{display:flex;align-items:center;gap:11px;}
+  .tb-avatar{width:38px;height:38px;border-radius:50%;background:#e7eaf4;color:#8a91a6;
+    display:flex;align-items:center;justify-content:center;}
+  .tb-user b{font-size:15px;font-weight:700;color:var(--ink);}
+
+  /* ===== Stat cards ===== */
+  .stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;}
+  .stat-card{background:var(--card);border:1px solid #eef1f6;border-radius:var(--radius);
+    padding:22px 24px;display:flex;flex-direction:column;gap:18px;box-shadow:var(--shadow);}
+  .stat-top{display:flex;align-items:center;gap:18px;}
+  .stat-ico{width:58px;height:58px;border-radius:16px;flex-shrink:0;display:flex;
+    align-items:center;justify-content:center;color:#fff;}
+  .stat-ico svg{width:30px;height:30px;}
+  .stat-num{font-size:34px;font-weight:800;line-height:1;}
+  .stat-lbl{font-size:15px;font-weight:600;color:#6b7390;margin-top:7px;}
+  .stat-more{display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;
+    color:#9aa1b5;cursor:pointer;transition:color .15s;}
+  .stat-more:hover{color:var(--blue);}
+  .stat-more svg{width:16px;height:16px;}
+
+  /* пилюля выбора периода (год/месяц) как на референсе */
+  .pick{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid #e7eaf2;
+    border-radius:13px;padding:9px 15px;font-size:14px;font-weight:600;color:#3a4256;cursor:pointer;}
+  .pick svg{width:17px;height:17px;color:#8a91a6;}
+  .pick select{border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:600;
+    color:#3a4256;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;}
+  .chart-legend{display:flex;align-items:center;gap:18px;justify-content:center;margin-bottom:4px;}
+  .chart-legend span{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#6b7390;}
+  .chart-legend i{width:11px;height:11px;border-radius:50%;}
+
+  .section-title{font-size:21px;font-weight:800;color:var(--ink);margin:8px 2px -8px;}
+
+  /* вкладки Образование / Финансы / Маркет / Система — на всю ширину */
+  .tabs{display:flex;width:100%;gap:8px;background:#fff;border:1px solid #eef1f6;border-radius:18px;
+    padding:7px;box-shadow:var(--shadow);}
+  .tab-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:10px;border:none;background:transparent;
+    font-family:inherit;font-size:15px;font-weight:600;color:#6b7390;padding:13px 18px;border-radius:12px;
+    cursor:pointer;transition:background .15s,color .15s,box-shadow .15s;white-space:nowrap;}
+  .tab-btn svg{width:19px;height:19px;}
+  .tab-btn:hover:not(.active){color:var(--ink);background:#f4f6fb;}
+  .tab-btn.active{background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;
+    box-shadow:0 10px 22px rgba(59,91,255,.28);}
+
+  /* общий фильтр вкладки */
+  .tabfilter{background:#fff;border:1px solid #eef1f6;border-radius:18px;padding:18px 22px;box-shadow:var(--shadow);}
+  .tabfilter .filter-bar{margin:0;}
+  .tf-date input{width:100%;appearance:none;-webkit-appearance:none;background:#fff;border:1.5px solid #e7eaf2;
+    border-radius:13px;padding:10px 12px;font-family:inherit;font-size:13.5px;font-weight:600;color:#3a4256;
+    outline:none;cursor:pointer;transition:border-color .15s;}
+  .tf-date input:hover{border-color:#cdd4e6;}
+  .tf-date input:focus{border-color:var(--blue);}
+  .tf-date input::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer;}
+  /* убираем индивидуальные фильтры из карточек — фильтр теперь общий сверху */
+  .main .grid > .card .filter-bar,
+  .main .grid > .card .pill-group,
+  .main .grid > .card .pick,
+  .main .grid > .card .seg{display:none!important;}
+
+  .grid{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;grid-auto-flow:row dense;align-items:stretch;
+  }
+  /* содержимое тянется на всю высоту карточки — строки выравниваются, нет пустот между блоками */
+  .grid>.card>.donut-row{flex:1;}
+  .grid>.card>.prog-list,.grid>.card>.hbar-list,.grid>.card>.sl-list,.grid>.card>.prod-list,.grid>.card>.lb-body{flex:1;justify-content:center;}
+  .card{
+    background:var(--card);border:1px solid #eef1f6;border-radius:var(--radius);padding:22px 24px;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;
+  }
+  .span2{grid-column:span 2;}
+  .span3{grid-column:span 3;}
+
+  .card-head{
+    display:flex;align-items:flex-start;justify-content:space-between;
+    margin-bottom:18px;gap:12px;flex-wrap:wrap;
+  }
+  .card-head h3{font-size:16px;font-weight:700;line-height:1.3;}
+  .card-head .sub{font-size:12.5px;color:var(--muted);font-weight:500;margin-top:3px;}
+
+  .pill-group{display:flex;gap:8px;flex-wrap:wrap;}
+  .pill{
+    display:inline-flex;align-items:center;gap:7px;
+    background:#f2f4f9;border-radius:11px;padding:7px 11px;
+    font-size:13px;font-weight:600;color:#48506a;white-space:nowrap;
+    cursor:pointer;transition:background .15s;
+  }
+  .pill:hover{background:#e9ecf4;}
+  .pill .tag{color:var(--muted);font-size:12px;}
+  .pill input[type=date]{
+    border:none;background:transparent;font-family:inherit;
+    font-size:13px;font-weight:600;color:#3a4256;outline:none;
+    width:104px;cursor:pointer;
+  }
+  .pill input[type=date]::-webkit-calendar-picker-indicator{
+    opacity:.5;cursor:pointer;margin-left:2px;
+  }
+  .pill input[type=date]:hover::-webkit-calendar-picker-indicator{opacity:.8;}
+
+  .chart-wrap{position:relative;flex:1;min-height:230px;}
+  .chart-wrap.sm{min-height:210px;}
+
+  .donut-row{display:flex;align-items:center;gap:20px;}
+  .donut-canvas{position:relative;width:172px;height:172px;flex-shrink:0;}
+  .donut-center{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;pointer-events:none;
+  }
+  .donut-center .num{font-size:25px;font-weight:800;line-height:1;}
+  .donut-center .unit{font-size:13px;font-weight:600;color:var(--muted);margin-top:4px;}
+
+  .legend{display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;}
+  .legend-row{
+    display:flex;align-items:center;gap:8px;
+    background:#f8f9fc;border-radius:13px;padding:9px 12px;position:relative;
+  }
+  .legend-row .bar{position:absolute;left:0;top:7px;bottom:7px;width:4px;border-radius:4px;}
+  .legend-row .lbl{font-size:13px;font-weight:600;color:#3a4256;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .legend-row .val{margin-left:auto;font-size:13.5px;font-weight:800;white-space:nowrap;flex-shrink:0;}
+  .legend-row .pct{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:7px;white-space:nowrap;flex-shrink:0;}
+
+  /* Узкие (1-кол) карточки: донат + легенда вертикально — легенда получает всю ширину */
+  .grid>.card:not(.span2):not(.span3)>.donut-row{flex-direction:column;align-items:center;gap:14px;}
+  .grid>.card:not(.span2):not(.span3)>.donut-row>.donut-canvas{width:148px;height:148px;}
+  .grid>.card:not(.span2):not(.span3)>.donut-row>.donut-canvas .num{font-size:21px;}
+  .grid>.card:not(.span2):not(.span3)>.donut-row>.legend{width:100%;flex:unset;}
+
+  .prod-list{display:flex;flex-direction:column;gap:16px;padding-top:4px;}
+  .prod{display:flex;align-items:center;gap:13px;}
+  .prod .ico{
+    width:54px;height:54px;border-radius:15px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:30px;background:#f2f4f9;
+  }
+  .prod .body{flex:1;}
+  .prod .top{display:flex;justify-content:space-between;margin-bottom:6px;}
+  .prod .name{font-size:13.5px;font-weight:600;color:#3a4256;}
+  .prod .cnt{font-size:13.5px;font-weight:800;}
+  .prod .track{height:9px;border-radius:6px;background:#f0f2f8;overflow:hidden;}
+  .prod .fill{height:100%;border-radius:6px;transition:width .4s ease;}
+
+  .empty{font-size:13px;color:var(--muted);font-weight:500;padding:30px 0;text-align:center;}
+
+  /* фильтры рейтинга активности */
+  .filter-bar{display:flex;gap:14px;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;}
+  .filter-field{display:flex;flex-direction:column;gap:7px;flex:1;min-width:140px;}
+  .filter-field>label{font-size:13.5px;font-weight:600;color:var(--ink);}
+  .select-wrap{position:relative;}
+  .select-wrap select{
+    width:100%;appearance:none;-webkit-appearance:none;background:#fff;
+    border:1.5px solid #e7eaf2;border-radius:13px;padding:11px 36px 11px 14px;
+    font-family:inherit;font-size:13.5px;font-weight:500;color:#3a4256;
+    cursor:pointer;outline:none;transition:border-color .15s;
+  }
+  .select-wrap select:hover{border-color:#cdd4e6;}
+  .select-wrap select:focus{border-color:var(--blue);}
+  .select-wrap select.placeholder{color:#aab1c4;}
+  .select-wrap .chev{position:absolute;right:13px;top:50%;transform:translateY(-50%);
+    pointer-events:none;color:#aab1c4;display:flex;}
+  .select-wrap select:disabled{background:#f6f7fb;color:#c2c8d6;cursor:not-allowed;border-color:#eef0f6;}
+  .select-wrap .clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);z-index:2;
+    width:19px;height:19px;border:none;border-radius:50%;background:#e3e7f0;color:#6b7390;
+    display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:background .15s;}
+  .select-wrap .clear:hover{background:#d3d9e6;color:#2a3142;}
+  .select-wrap.filled .clear{display:flex;}
+  .select-wrap.filled .chev{display:none;}
+
+  /* общий css-тултип для funnel и progress */
+  [data-tip]{position:relative;}
+  [data-tip]::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;
+    transform:translate(-50%,-8px);background:#121524;color:#fff;font-size:11.5px;font-weight:600;
+    padding:7px 10px;border-radius:9px;white-space:nowrap;opacity:0;pointer-events:none;
+    transition:opacity .12s;box-shadow:0 8px 18px rgba(0,0,0,.2);z-index:30;}
+  [data-tip]:hover::after{opacity:1;}
+
+  /* виджет 1: тепловая карта */
+  .heat{display:flex;flex-direction:column;gap:8px;position:relative;}
+  .heat-grid,.heat-hours{display:grid;grid-template-columns:42px repeat(24,1fr);gap:4px;}
+  .heat-day{display:flex;align-items:center;font-size:12px;font-weight:600;color:var(--muted);}
+  .heat-cell{height:26px;border-radius:5px;cursor:pointer;transition:transform .12s,box-shadow .12s;}
+  .heat-cell:hover{transform:scale(1.18);box-shadow:0 4px 12px rgba(59,91,255,.4);}
+  .heat-hours span{font-size:10px;font-weight:600;color:var(--muted);text-align:center;}
+  .heat-legend{display:flex;align-items:center;gap:9px;font-size:11.5px;font-weight:600;color:var(--muted);margin-top:2px;}
+  .heat-legend i{width:150px;height:10px;border-radius:6px;
+    background:linear-gradient(90deg,#eef1fb,#b7c4ff,#7b8cff,#5b6bff,#8b5cf6,#e94fd0);}
+  .heat-tip{position:fixed;z-index:60;background:#121524;color:#fff;font-size:12px;font-weight:600;
+    padding:8px 11px;border-radius:10px;pointer-events:none;opacity:0;transform:translate(-50%,-118%);
+    transition:opacity .12s;white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.25);}
+  .heat-tip::after{content:'';position:absolute;left:50%;top:100%;transform:translateX(-50%);
+    border:6px solid transparent;border-top-color:#121524;}
+  .heat-peak{position:absolute;z-index:45;background:#121524;color:#fff;font-size:11.5px;font-weight:700;
+    padding:7px 11px;border-radius:10px;white-space:nowrap;transform:translate(-50%,-132%);
+    box-shadow:0 8px 20px rgba(0,0,0,.25);pointer-events:none;}
+  .heat-peak::after{content:'';position:absolute;left:50%;top:100%;transform:translateX(-50%);
+    border:6px solid transparent;border-top-color:#121524;}
+
+  /* виджет 3: прогресс по параллелям */
+  .prog-list{display:flex;flex-direction:column;gap:22px;padding-top:6px;}
+  .prog{display:flex;flex-direction:column;gap:10px;}
+  .prog-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;}
+  .prog-top .cls{font-size:14px;font-weight:700;}
+  .prog-top .info{font-size:12.5px;font-weight:600;color:var(--muted);}
+  .prog-top .info b{color:var(--ink);}
+  .prog-pct{font-weight:800;}
+  .prog-track{height:12px;border-radius:8px;background:#f0f2f8;overflow:hidden;cursor:default;}
+  .prog-fill{height:100%;border-radius:8px;transition:width .5s ease;}
+
+  /* виджет: рейтинг учеников (компактный блок + модалка) */
+  .lb-body{display:flex;align-items:center;gap:24px;flex-wrap:wrap;}
+  .lb-stats{display:flex;gap:13px;flex-wrap:wrap;}
+  .lb-stat{display:flex;flex-direction:column;gap:4px;background:#f8f9fc;border-radius:16px;padding:13px 18px;min-width:106px;}
+  .lb-stat .v{font-size:23px;font-weight:800;line-height:1;}
+  .lb-stat .l{font-size:12px;font-weight:600;color:var(--muted);}
+  .lb-podium{display:flex;gap:11px;flex:1;min-width:300px;}
+  .lb-chip{display:flex;align-items:center;gap:11px;background:#f8f9fc;border-radius:16px;padding:10px 14px;flex:1;min-width:0;}
+  .lb-chip .rank{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;flex-shrink:0;box-shadow:0 6px 14px rgba(0,0,0,.14);}
+  .lb-chip .info{min-width:0;flex:1;}
+  .lb-chip .nm{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lb-chip .meta{font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lb-chip .xp{font-size:13.5px;font-weight:800;color:var(--blue);white-space:nowrap;}
+  .lb-more{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;border:none;border-radius:14px;padding:13px 20px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 10px 22px rgba(59,91,255,.3);transition:transform .15s,box-shadow .15s;white-space:nowrap;}
+  .lb-more:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(59,91,255,.42);}
+
+  .lb-modal{position:fixed;inset:0;z-index:100;background:rgba(18,21,36,.55);backdrop-filter:blur(4px);
+    display:none;align-items:stretch;justify-content:center;}
+  .lb-modal.open{display:flex;}
+  .lb-modal-card{background:var(--page);width:100%;height:100%;display:flex;flex-direction:column;animation:lbIn .25s ease;}
+  @keyframes lbIn{from{opacity:0;transform:scale(.99)}to{opacity:1;transform:none}}
+  .lb-modal-head{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:22px 30px;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .lb-modal-head h2{font-size:21px;font-weight:800;}
+  .lb-modal-head p{font-size:13px;color:var(--muted);font-weight:600;margin-top:3px;}
+  .lb-modal-actions{display:flex;align-items:center;gap:12px;}
+  .lb-export{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--teal),#0fb98c);
+    color:#fff;border:none;border-radius:13px;padding:12px 18px;font-family:inherit;font-size:13.5px;font-weight:700;
+    cursor:pointer;box-shadow:0 8px 20px rgba(18,201,155,.3);transition:transform .15s,box-shadow .15s;}
+  .lb-export:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(18,201,155,.42);}
+  .lb-close{width:44px;height:44px;border-radius:13px;border:none;background:#f2f4f9;color:#48506a;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:background .15s;}
+  .lb-close:hover{background:#e9ecf4;color:#2a3142;}
+  .lb-toolbar{display:flex;align-items:center;gap:12px;padding:18px 30px 6px;flex-wrap:wrap;}
+  .lb-search{position:relative;flex:1;max-width:330px;min-width:200px;}
+  .lb-search input{width:100%;border:1.5px solid #e7eaf2;border-radius:13px;padding:11px 14px 11px 40px;
+    font-family:inherit;font-size:14px;font-weight:500;color:#3a4256;outline:none;background:#fff;transition:border-color .15s;}
+  .lb-search input:focus{border-color:var(--blue);}
+  .lb-search>svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#aab1c4;pointer-events:none;}
+  .lb-toolbar .select-wrap{min-width:160px;}
+  .lb-count{margin-left:auto;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;}
+  .lb-table-wrap{flex:1;overflow:auto;margin:14px 30px 30px;background:#fff;border-radius:18px;box-shadow:var(--shadow);}
+  .lb-table{width:100%;border-collapse:collapse;font-size:14px;}
+  .lb-table thead th{position:sticky;top:0;background:#f6f7fb;z-index:1;text-align:left;font-size:12px;font-weight:700;
+    letter-spacing:.04em;text-transform:uppercase;color:#8a91a6;padding:15px 20px;white-space:nowrap;}
+  .lb-table thead th.num{text-align:right;}
+  .lb-table tbody td{padding:14px 20px;border-top:1px solid var(--line);font-weight:500;color:#3a4256;white-space:nowrap;}
+  .lb-table tbody tr:hover{background:#f8f9fc;}
+  .lb-table .c-rank{width:60px;}
+  .lb-table .c-name{font-weight:700;color:var(--ink);}
+  .lb-table .c-num{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+  .lb-medal{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:8px;
+    color:#fff;font-weight:800;font-size:12.5px;}
+  .lb-rk{font-weight:800;color:var(--muted);}
+  .lb-badge{display:inline-block;padding:3px 10px;border-radius:8px;background:#eef1fb;color:#48506a;font-size:12.5px;font-weight:700;}
+  .lb-empty{padding:54px;text-align:center;color:var(--muted);font-weight:600;}
+
+  /* шапка с инструментами (скачать + меню) */
+  .head-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .card-tools{display:flex;align-items:center;gap:8px;}
+  .icon-btn{width:36px;height:36px;border-radius:11px;border:none;background:#f2f4f9;color:#6b7390;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}
+  .icon-btn:hover{background:#e9ecf4;color:var(--ink);}
+  .icon-btn:active{transform:scale(.94);}
+  .card-menu{position:relative;}
+  .card-menu-pop{position:absolute;right:0;top:42px;background:#fff;border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 14px 34px rgba(28,40,90,.16);padding:6px;min-width:194px;z-index:25;display:none;}
+  .card-menu-pop.open{display:block;}
+  .card-menu-pop button{display:flex;align-items:center;gap:11px;width:100%;border:none;background:transparent;
+    font-family:inherit;font-size:13.5px;font-weight:600;color:#3a4256;padding:10px 11px;border-radius:10px;cursor:pointer;text-align:left;}
+  .card-menu-pop button:hover{background:#f2f4f9;}
+  .card-menu-pop button svg{color:#8a91a6;flex-shrink:0;}
+
+  /* сегментный переключатель периода */
+  .seg{display:inline-flex;background:#f2f4f9;border-radius:12px;padding:4px;gap:2px;}
+  .seg button{border:none;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:#6b7390;
+    padding:7px 13px;border-radius:9px;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s;}
+  .seg button.active{background:#fff;color:var(--ink);box-shadow:0 4px 10px rgba(28,40,90,.1);}
+  .seg button:hover:not(.active){color:var(--ink);}
+
+  /* W1: горизонтальные бары с аватарами */
+  .hbar-list{display:flex;flex-direction:column;gap:16px;padding-top:4px;}
+  .hbar{display:flex;align-items:center;gap:13px;}
+  .hbar .av{width:42px;height:42px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-size:14.5px;font-weight:700;color:#fff;letter-spacing:.5px;}
+  .hbar .body{flex:1;min-width:0;}
+  .hbar .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:10px;}
+  .hbar .nm{font-size:13.5px;font-weight:600;color:#3a4256;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hbar .nm small{color:var(--muted);font-weight:600;}
+  .hbar .val{font-size:13.5px;font-weight:800;white-space:nowrap;}
+  .hbar .val small{font-size:11px;color:var(--muted);font-weight:600;}
+  .hbar .track{height:10px;border-radius:6px;background:#f0f2f8;overflow:hidden;cursor:default;}
+  .hbar .fill{height:100%;border-radius:6px;transition:width .5s ease;}
+  .hbar-tag{display:inline-block;margin-left:7px;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:7px;
+    background:#ffe9e9;color:var(--red);vertical-align:middle;}
+
+  /* W4: рейтинг школ */
+  .sl-list{display:flex;flex-direction:column;gap:17px;padding-top:4px;}
+  .sl{display:flex;align-items:center;gap:13px;}
+  .sl .rk{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:13.5px;background:#f2f4f9;color:#48506a;}
+  .sl .body{flex:1;min-width:0;}
+  .sl .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:10px;}
+  .sl .nm{font-size:13.5px;font-weight:600;color:#3a4256;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sl .pts{font-size:13.5px;font-weight:800;white-space:nowrap;}
+  .sl .pts small{font-size:11px;color:var(--muted);font-weight:600;}
+  .sl .track{height:9px;border-radius:6px;background:#f0f2f8;overflow:hidden;cursor:default;}
+  .sl .fill{height:100%;border-radius:6px;transition:width .5s ease;}
+
+  /* скрыть кнопки скачать/троеточие из всех карточек */
+  .main .grid .card-tools,.main .grid .card-menu{display:none!important;}
+
+  /* ===== Выбор роли в сайдбаре ===== */
+  .sb-role{position:relative;margin:0 0 18px;}
+  .sb-role-btn{display:flex;align-items:center;gap:9px;padding:10px 13px;border-radius:13px;
+    background:rgba(255,255,255,.12);cursor:pointer;user-select:none;transition:background .18s;}
+  .sb-role-btn:hover{background:rgba(255,255,255,.2);}
+  .sb-role-btn .rb-ico{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.18);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .sb-role-btn .rb-ico svg{width:15px;height:15px;color:#fff;}
+  .sb-role-btn .rb-lbl{flex:1;font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sb-role-btn .rb-chev{color:rgba(255,255,255,.6);transition:transform .2s;flex-shrink:0;}
+  .sb-role-btn .rb-chev svg{width:14px;height:14px;display:block;}
+  .sb-role.open .rb-chev{transform:rotate(180deg);}
+  .sb-role-pop{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;
+    background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:200;overflow:hidden;padding:5px;}
+  .sb-role.open .sb-role-pop{display:block;}
+  .sb-role-pop button{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;
+    background:none;border:none;border-radius:9px;font-size:12.5px;font-weight:600;color:#3a4256;cursor:pointer;text-align:left;}
+  .sb-role-pop button:hover{background:#f4f6fb;}
+  .sb-role-pop button.active{background:#eef0ff;color:var(--blue);}
+  .sb-role-pop .rp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  /* разделитель между группами */
+  .sb-role-pop .rp-sep{height:1px;background:#f0f2f8;margin:5px 0;}
+
+  /* Финансы: три доната одинакового размера */
+  .card[data-card="subsales"] .donut-canvas,
+  .card[data-card="payments"] .donut-canvas,
+  .card[data-card="paystatus"] .donut-canvas{width:160px!important;height:160px!important;}
+  .card[data-card="subsales"] .num,
+  .card[data-card="payments"] .num,
+  .card[data-card="paystatus"] .num{font-size:15px!important;line-height:1.3!important;}
+  #paymentsFilters{display:none!important;}
+
+  /* пара карточек финансов (50/50) */
+  .card-pair{grid-column:1/-1;display:flex;gap:22px;}
+  .card-pair>.card{flex:1;min-width:0;}
+
+  /* ===== РОЛЕВАЯ ВИДИМОСТЬ ===== */
+  /* Скрыть лишние stat-карточки для учителя */
+  .role-teacher .stat-card[data-stat-teacher-hide]{display:none!important;}
+  /* Скрыть графики образования для ограниченных ролей */
+  .role-limited [data-card="activity"],
+  .role-limited [data-card="streak"],
+  .role-limited [data-card="prog"],
+  .role-limited [data-card="leaderboard"],
+  .role-limited [data-card="schoolrank"]{display:none!important;}
+
+  /* Фильтр в топе дашборда (только учитель) */
+  .teacher-top-filter{display:none!important;margin-bottom:18px;}
+  .role-teacher .teacher-top-filter{display:flex!important;}
+  /* Фильтр директора (перебивает .uni-filter display:flex) */
+  .director-top-filter{display:none!important;margin-bottom:18px;}
+  .role-director .director-top-filter{display:flex!important;}
+
+  /* Карточка «Требуют внимания» (только учитель) */
+  .stat-card.teacher-only-stat{display:none;}
+  .role-teacher .stat-card.teacher-only-stat{display:block;}
+
+  /* Скрыть дополнительные блоки и фильтр для учителя */
+  .role-teacher [data-card="funnel"],
+  .role-teacher [data-card="help"],
+  .role-teacher [data-card="subjreq"],
+  .role-teacher [data-card="topics"],
+  .role-teacher [data-tabfilter="edu"]{display:none!important;}
+
+  /* ===== ПРЕДМЕТЫ (только для учителя) ===== */
+  .teacher-subjects{display:none;margin-bottom:22px;}
+  .role-teacher .teacher-subjects{display:block;}
+  /* ===== ДИРЕКТОР ===== */
+  /* Скрываем все stat-card для директора кроме помеченных */
+  .role-director .stat-card{display:none!important;}
+  .role-director .stat-card[data-dir-show]{display:block!important;}
+  /* Новые карточки директора (скрыты по умолч.) */
+  .stat-card.dir-only-stat{display:none;}
+  /* Секция с графиками директора */
+  .dir-section{display:none;}
+  .role-director .dir-section{display:block;}
+  /* Для директора: скрываем tabfilter edu, help, topics */
+  .role-director [data-tabfilter="edu"]{display:none!important;}
+  .role-director [data-card="help"]{display:none!important;}
+  .role-director [data-card="topics"]{display:none!important;}
+  .role-director #subjreqSub{display:none!important;}
+  /* Сетка графиков директора */
+  .dir-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:20px;}
+  .dir-grid .sp-card{background:#fff;border-radius:20px;padding:22px 24px;box-shadow:0 2px 12px rgba(30,40,100,.07);}
+  .dir-grid .sp-card.span2{grid-column:span 2;}
+  .dir-card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;}
+  .dir-card-title{font-size:15px;font-weight:800;color:#1b2550;}
+  .dir-chart-wrap{position:relative;width:100%;height:220px;}
+  /* Слабые группы — список */
+  .dir-weak-list{display:flex;flex-direction:column;gap:10px;margin-top:4px;}
+  .dir-weak-row{display:flex;align-items:center;gap:12px;}
+  .dir-weak-rank{font-size:13px;font-weight:800;color:#8a94b0;width:22px;flex-shrink:0;}
+  .dir-weak-name{font-size:13.5px;font-weight:700;color:#1b2550;flex:1;}
+  .dir-weak-bar-bg{flex:2;height:8px;background:#f0f2f8;border-radius:99px;overflow:hidden;}
+  .dir-weak-bar{height:100%;border-radius:99px;background:#ff5a5f;}
+  .dir-weak-val{font-size:13px;font-weight:800;color:#ff5a5f;min-width:32px;text-align:right;}
+  /* Проблемные темы по предметам */
+  .dir-prob-list{display:flex;flex-direction:column;gap:6px;margin-top:4px;}
+  .dir-prob-subj{font-size:12px;font-weight:700;color:#8a94b0;margin:10px 0 4px;}
+  .dir-prob-subj:first-child{margin-top:0;}
+  .dir-prob-row{display:flex;align-items:center;gap:10px;}
+  .dir-prob-name{font-size:13px;font-weight:600;color:#3a4256;flex:1;}
+  .dir-prob-bar-bg{flex:1.5;height:7px;background:#f0f2f8;border-radius:99px;overflow:hidden;}
+  .dir-prob-bar{height:100%;border-radius:99px;}
+  .dir-prob-pct{font-size:12px;font-weight:800;color:#8a94b0;min-width:32px;text-align:right;}
+
+  /* Scrollable chart wrappers */
+  .dir-scroll-chart{overflow-y:auto;overflow-x:hidden;border-radius:10px;}
+  .dir-scroll-chart::-webkit-scrollbar{width:4px;}
+  .dir-scroll-chart::-webkit-scrollbar-track{background:transparent;}
+  .dir-scroll-chart::-webkit-scrollbar-thumb{background:#c5cae9;border-radius:99px;}
+  .dir-scroll-list{max-height:320px;overflow-y:auto;padding-right:4px;}
+  .dir-scroll-list::-webkit-scrollbar{width:4px;}
+  .dir-scroll-list::-webkit-scrollbar-track{background:transparent;}
+  .dir-scroll-list::-webkit-scrollbar-thumb{background:#c5cae9;border-radius:99px;}
+
+  /* Предметы, требующие внимания */
+  .dir-attn-list{display:flex;flex-direction:column;gap:10px;}
+  .dir-attn-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;background:#fff8f8;}
+  .dir-attn-subj{font-size:13.5px;font-weight:700;color:#1b2550;flex:1;}
+  .dir-attn-score{font-size:13px;font-weight:800;}
+  .dir-attn-badge{padding:3px 10px;border-radius:7px;font-size:11.5px;font-weight:800;}
+  .dir-attn-badge.lo{background:#ffe8e8;color:#ff5a5f;}
+  .dir-attn-badge.mid{background:#fff8e6;color:#f5a623;}
+  .dir-attn-trend{font-size:14px;font-weight:800;}
+  .dir-attn-trend.up{color:#12c99b;}
+  .dir-attn-trend.dn{color:#ff5a5f;}
+
+  /* Большая таблица классов */
+  .dir-class-table-wrap{overflow-x:auto;border-radius:12px;}
+  .dir-class-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .dir-class-table th{padding:11px 14px;text-align:left;font-size:11px;font-weight:700;
+    color:#8a94b0;text-transform:uppercase;letter-spacing:.5px;
+    border-bottom:2px solid #f0f2f8;white-space:nowrap;}
+  .dir-class-table td{padding:11px 14px;border-bottom:1px solid #f5f6fc;color:#3a4256;font-weight:600;}
+  .dir-class-table tr:last-child td{border-bottom:none;}
+  .dir-class-table tr:hover td{background:#f8f9ff;}
+  .dir-class-name{font-size:14px;font-weight:900;color:#1b2550;}
+  .dir-trend-up{color:#12c99b;font-size:16px;font-weight:900;}
+  .dir-trend-dn{color:#ff5a5f;font-size:16px;font-weight:900;}
+  .dir-attn-count{display:inline-flex;align-items:center;justify-content:center;
+    width:28px;height:28px;border-radius:50%;background:#ffe8e8;color:#ff5a5f;font-size:12px;font-weight:800;}
+  .ts-title{font-size:17px;font-weight:800;color:#1b2550;margin:0 0 14px;}
+  .ts-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+  .ts-card{background:#fff;border-radius:18px;padding:18px 16px;cursor:pointer;
+    display:flex;align-items:center;gap:13px;
+    box-shadow:0 2px 12px rgba(30,40,100,.07);
+    transition:transform .18s,box-shadow .18s;}
+  .ts-card:hover{transform:translateY(-3px);box-shadow:0 6px 22px rgba(30,40,100,.13);}
+  .ts-ico{width:46px;height:46px;border-radius:13px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;}
+  .ts-ico svg{width:24px;height:24px;color:#fff;}
+  .ts-name{font-size:14px;font-weight:700;color:#1b2550;}
+
+  /* ===== СТРАНИЦА ПРЕДМЕТА ===== */
+  .subj-page{display:none;position:absolute;inset:0;background:#f4f6fc;
+    z-index:50;padding:28px 32px 40px;overflow-y:auto;}
+  .subj-page.open{display:block;}
+  .subj-back{display:inline-flex;align-items:center;gap:7px;margin-bottom:22px;
+    padding:9px 16px;border-radius:12px;border:none;background:#fff;
+    font-size:13.5px;font-weight:700;color:#3a4256;cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.07);transition:background .15s;}
+  .subj-back:hover{background:#eef0ff;color:var(--blue);}
+  .subj-back svg{width:16px;height:16px;}
+  .subj-page-head{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
+  .subj-page-ico{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .subj-page-ico svg{width:30px;height:30px;color:#fff;}
+  .subj-page-name{font-size:24px;font-weight:900;color:#1b2550;}
+  .subj-placeholder{background:#fff;border-radius:18px;padding:40px;text-align:center;
+    color:#8a94b0;font-size:15px;font-weight:600;box-shadow:0 2px 12px rgba(30,40,100,.06);}
+  .subj-placeholder svg{width:64px;height:64px;color:#d0d5e8;margin-bottom:14px;display:block;margin-left:auto;margin-right:auto;}
+
+  /* ===== СЕКЦИИ СТРАНИЦЫ ПРЕДМЕТА ===== */
+  .sp-top-row{display:flex;gap:18px;margin-bottom:18px;}
+  .sp-score-card{flex:0 0 240px;background:#fff;border-radius:20px;padding:28px 20px;
+    box-shadow:0 2px 12px rgba(30,40,100,.07);display:flex;flex-direction:column;
+    align-items:center;text-align:center;gap:14px;}
+  .sp-ring-wrap{position:relative;width:150px;height:150px;}
+  .sp-ring{width:150px;height:150px;transform:rotate(-90deg);}
+  .sp-ring-bg{fill:none;stroke:#eef0ff;stroke-width:10;}
+  .sp-ring-fg{fill:none;stroke-width:10;stroke-linecap:round;stroke-dasharray:314;
+    stroke-dashoffset:78;transition:stroke-dashoffset .7s ease;}
+  .sp-ring-overlay{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:2px;}
+  .sp-score-big{font-size:40px;font-weight:900;color:#1b2550;line-height:1;}
+  .sp-score-max{font-size:12px;color:#8a94b0;font-weight:600;}
+  .sp-score-lbl{font-size:12.5px;font-weight:700;color:#8a94b0;}
+
+  .sp-compare-card{flex:1;background:#fff;border-radius:20px;padding:22px 24px;
+    box-shadow:0 2px 12px rgba(30,40,100,.07);}
+  .sp-compare-title{font-size:14px;font-weight:800;color:#1b2550;margin-bottom:16px;}
+  .sp-c-item{display:flex;align-items:center;gap:10px;margin-bottom:11px;}
+  .sp-c-item:last-child{margin-bottom:0;}
+  .sp-c-item.cur .sp-c-name{font-weight:800;}
+  .sp-c-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .sp-c-name{font-size:13px;font-weight:600;color:#3a4256;width:130px;flex-shrink:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sp-c-bar-bg{flex:1;height:8px;background:#eef0ff;border-radius:99px;overflow:hidden;}
+  .sp-c-bar{height:100%;border-radius:99px;transition:width .5s ease;}
+  .sp-c-val{font-size:13px;font-weight:800;color:#1b2550;width:26px;text-align:right;flex-shrink:0;}
+
+  .sp-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:18px;}
+  .sp-stat{background:#fff;border-radius:20px;padding:22px 20px;
+    box-shadow:0 2px 12px rgba(30,40,100,.07);}
+  .sp-stat-ico{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;
+    justify-content:center;margin-bottom:14px;}
+  .sp-stat-ico svg{width:20px;height:20px;color:#fff;}
+  .sp-stat-num{font-size:30px;font-weight:900;color:#1b2550;margin-bottom:4px;}
+  .sp-stat-lbl{font-size:12.5px;font-weight:600;color:#8a94b0;}
+
+  .sp-dynamics{background:#fff;border-radius:20px;padding:22px 24px;margin-bottom:18px;
+    box-shadow:0 2px 12px rgba(30,40,100,.07);}
+  .sp-dynamics-title{font-size:14px;font-weight:800;color:#1b2550;margin-bottom:16px;}
+
+  .sp-mid-row{display:flex;gap:18px;margin-bottom:18px;}
+  .sp-prob-card{flex:1;background:#fff;border-radius:20px;padding:22px 24px;
+    box-shadow:0 2px 12px rgba(30,40,100,.07);}
+  .sp-prob-title{font-size:14px;font-weight:800;color:#1b2550;margin-bottom:14px;}
+  .sp-prob-item{display:flex;align-items:center;gap:10px;padding:10px 0;
+    border-bottom:1px solid #f0f2f8;}
+  .sp-prob-item:last-child{border-bottom:none;}
+  .sp-prob-num{font-size:12px;font-weight:800;color:#8a94b0;width:16px;flex-shrink:0;}
+  .sp-prob-name{flex:1;font-size:13px;font-weight:600;color:#1b2550;}
+  .sp-prob-bar-bg{width:70px;height:6px;background:#ffe8e8;border-radius:99px;overflow:hidden;flex-shrink:0;}
+  .sp-prob-bar{height:100%;background:#ff5a5f;border-radius:99px;}
+  .sp-prob-pct{font-size:12px;font-weight:800;color:#ff5a5f;width:30px;text-align:right;flex-shrink:0;}
+
+  .sp-dz-card{width:270px;flex-shrink:0;background:#fff;border-radius:20px;padding:22px 24px;
+    box-shadow:0 2px 12px rgba(30,40,100,.07);}
+  .sp-dz-title{font-size:14px;font-weight:800;color:#1b2550;margin-bottom:14px;}
+  .sp-dz-canvas-wrap{display:flex;justify-content:center;margin-bottom:14px;}
+  .sp-dz-canvas-wrap canvas{width:150px!important;height:150px!important;}
+  .sp-dz-leg-item{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;
+    color:#3a4256;margin-bottom:7px;}
+  .sp-dz-leg-item:last-child{margin-bottom:0;}
+  .sp-dz-leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+  .sp-dz-leg-val{margin-left:auto;font-weight:800;color:#1b2550;}
+
+  /* фильтр страницы предмета */
+  .sp-filters{margin-bottom:20px;}
+
+  .sp-tbl-card{background:#fff;border-radius:20px;padding:22px 24px;
+    box-shadow:0 2px 12px rgba(30,40,100,.07);overflow:hidden;}
+  .sp-tbl-title{font-size:14px;font-weight:800;color:#1b2550;margin-bottom:16px;}
+  .sp-tbl{width:100%;border-collapse:collapse;}
+  .sp-tbl th{text-align:left;font-size:12px;font-weight:700;color:#8a94b0;
+    padding:10px 12px;border-bottom:2px solid #f0f2f8;white-space:nowrap;}
+  .sp-tbl td{font-size:13px;font-weight:600;color:#3a4256;padding:11px 12px;
+    border-bottom:1px solid #f7f8fd;}
+  .sp-tbl tr:last-child td{border-bottom:none;}
+  .sp-tbl tr:hover td{background:#f8f9ff;}
+  /* ДЗ статус-бейджи (3 типа — используются везде) */
+  .sp-badge{display:inline-block;padding:4px 12px;border-radius:8px;font-size:12px;font-weight:800;}
+  .sp-badge.hi{background:#e6faf3;color:#12c99b;}
+  .sp-badge.mid{background:#fff8e6;color:#f5a623;}
+  .sp-badge.lo{background:#ffe8e8;color:#ff5a5f;}
+
+  /* Статус-бейдж на карточке ДЗ */
+  .sp-hw-badge{display:inline-block;padding:4px 12px;border-radius:8px;font-size:11.5px;font-weight:800;margin-top:6px;}
+  .sp-hw-badge.hi{background:#e6faf3;color:#12c99b;}
+  .sp-hw-badge.mid{background:#fff8e6;color:#f5a623;}
+  .sp-hw-badge.lo{background:#ffe8e8;color:#ff5a5f;}
+
+  /* Раскрываемые проблемные темы */
+  .sp-prob-group{border-bottom:1px solid #f0f2f8;}
+  .sp-prob-group:last-child{border-bottom:none;}
+  .sp-prob-group .sp-prob-item{border-bottom:none;cursor:pointer;border-radius:8px;transition:background .12s;}
+  .sp-prob-group .sp-prob-item:hover{background:#f8f9ff;}
+  .sp-prob-chev{flex-shrink:0;transition:transform .22s;color:#b0b8d0;}
+  .sp-prob-chev svg{width:15px;height:15px;display:block;}
+  .sp-prob-group.open .sp-prob-chev{transform:rotate(90deg);}
+  .sp-prob-expand{display:none;padding:6px 12px 12px 38px;}
+  .sp-prob-group.open .sp-prob-expand{display:block;}
+  .sp-prob-stu-lbl{font-size:11.5px;font-weight:700;color:#8a94b0;margin-bottom:7px;}
+  .sp-prob-stu-row{display:flex;flex-wrap:wrap;gap:6px;}
+  .sp-stu-chip{padding:4px 11px;border-radius:99px;font-size:12px;font-weight:600;
+    background:#f0f2ff;color:var(--blue);}
+  .sp-stu-chip.lo{background:#ffe8e8;color:#ff5a5f;}
+
+  /* ===== ЕДИНЫЙ СТИЛЬ ФИЛЬТРОВ ===== */
+  .uni-filter{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;
+    background:#fff;border-radius:18px;padding:18px 22px;
+    box-shadow:0 2px 14px rgba(30,40,100,.08);}
+  .uf-sep{width:1px;background:#eef0f6;align-self:stretch;margin:0 4px;}
+  .uf-group{display:flex;flex-direction:column;gap:6px;}
+  .uf-lbl{font-size:11px;font-weight:700;color:#8a94b0;text-transform:uppercase;letter-spacing:.6px;}
+  .uf-ctrl{padding:10px 14px;border-radius:12px;border:1.5px solid #e8eaf6;
+    background:#f8f9ff;font-size:13.5px;font-weight:600;color:#3a4256;
+    transition:border-color .15s,box-shadow .15s;min-width:120px;font-family:inherit;}
+  .uf-ctrl:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,91,255,.1);}
+  .uf-sel{padding-right:34px;
+    background:#f8f9ff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a94b0' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center;
+    appearance:none;}
+
+  @media(max-width:1280px){
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr));} .span2,.span3{grid-column:span 2;}
+    .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  }
+  @media(max-width:980px){
+    .sidebar{width:84px;padding:22px 12px;}
+    .sb-brand{font-size:0;padding:4px 0 22px;justify-content:center;}
+    .sb-link span{display:none;} .sb-link{justify-content:center;padding:13px 0;}
+    .sb-foot{display:none;}
+    .main{border-top-left-radius:30px;padding:20px 18px 32px;}
+  }
+  @media(max-width:760px){
+    .grid,.stat-grid{grid-template-columns:1fr;}
+    .span2,.span3{grid-column:span 1;} .donut-row{flex-direction:column;}
+    .heat-grid,.heat-hours{grid-template-columns:28px repeat(24,1fr);gap:2px;}
+    .heat-hours span{font-size:8px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===== Боковое меню ===== -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sb-toggle" id="sbToggle" title="Свернуть меню">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="sb-brand"><span class="ai">AI-</span><span class="bek">BEK</span></div>
+
+    <!-- Выбор роли -->
+    <div class="sb-role" id="sbRole">
+      <div class="sb-role-btn" id="roleBtn">
+        <div class="rb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5zM3 21a9 9 0 0 1 18 0"/></svg></div>
+        <span class="rb-lbl" id="roleLabel">Супер Админ</span>
+        <span class="rb-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <div class="sb-role-pop" id="rolePop">
+        <button data-role="super"><span class="rp-dot" style="background:#3b5bff"></span>Супер Админ</button>
+        <button data-role="admin"><span class="rp-dot" style="background:#12c99b"></span>Админ</button>
+        <button data-role="operator"><span class="rp-dot" style="background:#f5a623"></span>Оператор</button>
+        <div class="rp-sep"></div>
+        <button data-role="teacher"><span class="rp-dot" style="background:#8b5cf6"></span>Учитель</button>
+        <button data-role="director"><span class="rp-dot" style="background:#ff5a5f"></span>Директор</button>
+        <button data-role="head"><span class="rp-dot" style="background:#18d8e8"></span>Министр образования</button>
+        <button data-role="nachalnik"><span class="rp-dot" style="background:#e94fd0"></span>Нач. управления</button>
+        <button data-role="zav"><span class="rp-dot" style="background:#f5a623"></span>Зав. отделом</button>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <a class="sb-link active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-4H4zM14 8h6V4h-6z" stroke-linejoin="round"/></svg><span>Дашборд</span></a>
+      <a class="sb-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 6.2a3 3 0 0 1 0 5.6M18.5 20a4.8 4.8 0 0 0-3-4.4" stroke-linecap="round"/></svg><span>Пользователи</span></a>
+      <a class="sb-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-2 9-2 9h16s-2-2-2-9M10.5 21a2 2 0 0 0 3 0" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Создать уведомление</span></a>
+      <a class="sb-link" data-role-full><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 4 2 9l10 5 10-5zM6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5M22 9v5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>LMS</span></a>
+      <a class="sb-link" data-role-full><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-5h6v5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Школы</span></a>
+      <a class="sb-link" data-role-full><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5a2 2 0 0 1 2-2h10v18H6a2 2 0 0 1-2-2zM16 3h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2" stroke-linejoin="round"/></svg><span>Предметы</span></a>
+      <a class="sb-link" data-role-full><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 7h14l-1 13H6zM8 7a4 4 0 0 1 8 0" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Магазин</span></a>
+      <a class="sb-link" data-role-full><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4" stroke-linecap="round"/></svg><span>Подписки</span></a>
+    </nav>
+    <div class="sb-foot">
+      <img class="sb-mascot" src="./robot.png" alt="AI-BEK"
+           onerror="this.style.display='none'">
+      <button class="sb-logout" title="Выйти">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5M20 12H9M11 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== Контент ===== -->
+  <main class="main">
+
+    <!-- верхняя панель -->
+    <div class="topbar">
+      <div class="lang-switch"><button class="lang-btn active" onclick="setLang('uz')">UZ</button><button class="lang-btn" onclick="setLang('ru')">RU</button><button class="lang-btn" onclick="setLang('en')">EN</button></div>
+      <span class="tb-sep"></span>
+      <div class="tb-user">
+        <span class="tb-avatar"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0" stroke-linecap="round"/></svg></span>
+        <b>Test Admin</b>
+      </div>
+    </div>
+
+    <!-- блоки-показатели: всегда видны над табами -->
+    <!-- Фильтр учителя -->
+    <div class="teacher-top-filter uni-filter">
+      <div class="uf-group">
+        <span class="uf-lbl">От</span>
+        <input type="date" class="uf-ctrl" id="ttfFrom" value="2025-12-17">
+      </div>
+      <div class="uf-group">
+        <span class="uf-lbl">До</span>
+        <input type="date" class="uf-ctrl" id="ttfTo" value="2026-06-15">
+      </div>
+      <div class="uf-sep"></div>
+      <div class="uf-group">
+        <span class="uf-lbl">Класс</span>
+        <select class="uf-ctrl uf-sel" id="ttfClass">
+          <option value="">Все классы</option>
+          <option value="8А">8А</option>
+          <option value="8Б">8Б</option>
+          <option value="9А">9А</option>
+          <option value="9Б">9Б</option>
+        </select>
+      </div>
+      <div class="uf-group">
+        <span class="uf-lbl">Группа</span>
+        <select class="uf-ctrl uf-sel" id="ttfGroup">
+          <option value="">Все группы</option>
+          <option value="Группа 1">Группа 1</option>
+          <option value="Группа 2">Группа 2</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <!-- Родители: два человека (взрослый + ребёнок) -->
+      <div class="stat-card" data-stat-teacher-hide>
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#3ea0f7"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="7" cy="7" r="3"/><path d="M1 21a6 6 0 0 1 12 0"/>
+            <circle cx="18" cy="9.5" r="2.2"/><path d="M14 21a4 4 0 0 1 8 0"/>
+          </svg></div>
+          <div><div class="stat-num">98</div><div class="stat-lbl">Родителей</div></div>
+        </div>
+        <span class="stat-more">Подробнее <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <!-- Ученики: диплом / шапочка выпускника -->
+      <div class="stat-card" data-dir-show>
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#f5a623"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 10.5 12 5 2 10.5l10 5.5z"/>
+            <path d="M6 13v5c2 1.4 4 2.1 6 2.1s4-.7 6-2.1v-5"/>
+            <line x1="22" y1="10.5" x2="22" y2="16"/>
+          </svg></div>
+          <div><div class="stat-num">169</div><div class="stat-lbl">Учеников</div></div>
+        </div>
+        <span class="stat-more">Подробнее <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <!-- Требуют внимания (только учитель) -->
+      <div class="stat-card teacher-only-stat">
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#ff5a5f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg></div>
+          <div><div class="stat-num" id="ttfAttentionNum">23</div><div class="stat-lbl">Требуют внимания</div></div>
+        </div>
+      </div>
+      <!-- Средняя успеваемость (только учитель) -->
+      <div class="stat-card teacher-only-stat">
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#f5a623"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+          </svg></div>
+          <div><div class="stat-num">89</div><div class="stat-lbl">Средняя успеваемость</div></div>
+        </div>
+      </div>
+      <!-- Учатся хорошо (только учитель) -->
+      <div class="stat-card teacher-only-stat">
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#12c99b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg></div>
+          <div><div class="stat-num">57</div><div class="stat-lbl">Учатся хорошо</div></div>
+        </div>
+      </div>
+      <!-- Учителя: открытая книга -->
+      <div class="stat-card" data-stat-teacher-hide data-dir-show>
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#12c99b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg></div>
+          <div><div class="stat-num">14</div><div class="stat-lbl">Учителей</div></div>
+        </div>
+        <span class="stat-more">Подробнее <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <!-- Директора: портфель -->
+      <div class="stat-card" data-stat-teacher-hide>
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#ff5a5f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2"/>
+            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+            <line x1="12" y1="12" x2="12" y2="17"/>
+            <line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/>
+          </svg></div>
+          <div><div class="stat-num">3</div><div class="stat-lbl">Директоров</div></div>
+        </div>
+        <span class="stat-more">Подробнее <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <!-- Глав. управления: корона -->
+      <div class="stat-card" data-stat-teacher-hide>
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 20h18"/>
+            <path d="M3 20V9l4.5 3.5L12 4l4.5 8.5L21 9v11"/>
+          </svg></div>
+          <div><div class="stat-num">4</div><div class="stat-lbl">Глав.управления</div></div>
+        </div>
+        <span class="stat-more">Подробнее <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <!-- Операторы: чат поддержки -->
+      <div class="stat-card" data-stat-teacher-hide>
+        <div class="stat-top">
+          <div class="stat-ico" style="background:#18d8e8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            <circle cx="9" cy="11" r="0.7" fill="currentColor" stroke="none"/>
+            <circle cx="12" cy="11" r="0.7" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="11" r="0.7" fill="currentColor" stroke="none"/>
+          </svg></div>
+          <div><div class="stat-num">12</div><div class="stat-lbl">Операторов</div></div>
+        </div>
+        <span class="stat-more">Подробнее <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+    </div>
+
+    <!-- Фильтр директора -->
+    <div class="director-top-filter uni-filter">
+      <div class="uf-group">
+        <span class="uf-lbl">От</span>
+        <input type="date" class="uf-ctrl" id="dirFrom" value="2025-12-17">
+      </div>
+      <div class="uf-group">
+        <span class="uf-lbl">До</span>
+        <input type="date" class="uf-ctrl" id="dirTo" value="2026-06-15">
+      </div>
+    </div>
+
+    <!-- Дополнительные карточки директора -->
+    <div class="dir-section">
+      <div class="stat-grid" style="margin-bottom:20px;">
+        <div class="stat-card" data-dir-show style="display:block!important">
+          <div class="stat-top">
+            <div class="stat-ico" style="background:#3b5bff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg></div>
+            <div><div class="stat-num">12</div><div class="stat-lbl">Классов</div></div>
+          </div>
+        </div>
+        <div class="stat-card" style="display:block!important">
+          <div class="stat-top">
+            <div class="stat-ico" style="background:#f5a623"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg></div>
+            <div><div class="stat-num">71</div><div class="stat-lbl">Ср. балл по ДЗ</div>
+              <div class="sp-hw-badge mid" style="margin-top:4px">Средний</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Графики директора: 2-колоночная сетка -->
+      <div class="dir-grid">
+
+        <!-- 1. Успеваемость по классам — прокручиваемый горизонтальный бар -->
+        <div class="sp-card">
+          <div class="dir-card-head">
+            <div class="dir-card-title">Успеваемость по классам</div>
+          </div>
+          <div class="dir-scroll-chart" style="max-height:340px;">
+            <canvas id="cDirClasses" style="display:block;"></canvas>
+          </div>
+        </div>
+
+        <!-- 2. Выполнение ДЗ по школе — пончик -->
+        <div class="sp-card">
+          <div class="dir-card-head">
+            <div class="dir-card-title">Выполнение ДЗ по школе</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px;height:220px;">
+            <div style="position:relative;width:180px;height:180px;flex-shrink:0;">
+              <canvas id="cDirDZ" width="180" height="180"></canvas>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                <div style="font-size:26px;font-weight:900;color:#1b2550">71%</div>
+                <div style="font-size:11px;color:#8a94b0;font-weight:600">выполнено</div>
+              </div>
+            </div>
+            <div id="dirDzLegend" style="display:flex;flex-direction:column;gap:10px;flex:1;"></div>
+          </div>
+        </div>
+
+        <!-- 3. Успеваемость по предметам — горизонтальный бар -->
+        <div class="sp-card">
+          <div class="dir-card-head">
+            <div class="dir-card-title">Успеваемость по предметам</div>
+          </div>
+          <div class="dir-chart-wrap"><canvas id="cDirSubjects"></canvas></div>
+        </div>
+
+        <!-- 4. Динамика успеваемости по школе — линия -->
+        <div class="sp-card">
+          <div class="dir-card-head">
+            <div class="dir-card-title">Динамика успеваемости по школе</div>
+          </div>
+          <div class="dir-chart-wrap"><canvas id="cDirDynamic"></canvas></div>
+        </div>
+
+        <!-- 5. Проблемные темы по предметам — прокручиваемый список -->
+        <div class="sp-card">
+          <div class="dir-card-head">
+            <div class="dir-card-title">Проблемные темы по предметам</div>
+          </div>
+          <div class="dir-scroll-list dir-prob-list" id="dirProbList"></div>
+        </div>
+
+        <!-- 6. Самые слабые классы — прокручиваемый список -->
+        <div class="sp-card">
+          <div class="dir-card-head">
+            <div class="dir-card-title">Самые слабые классы</div>
+          </div>
+          <div class="dir-scroll-list dir-weak-list" id="dirWeakList"></div>
+        </div>
+
+        <!-- 7. Предметы, требующие внимания -->
+        <div class="sp-card span2">
+          <div class="dir-card-head">
+            <div class="dir-card-title">Предметы, требующие внимания</div>
+          </div>
+          <div class="dir-attn-list" id="dirAttnList"></div>
+        </div>
+
+      </div>
+
+      <!-- Большая таблица по всем классам -->
+      <div class="sp-card" style="margin-top:0;background:#fff;border-radius:20px;padding:22px 24px;box-shadow:0 2px 12px rgba(30,40,100,.07);">
+        <div class="dir-card-head" style="margin-bottom:20px;">
+          <div class="dir-card-title">Сводная таблица по классам</div>
+        </div>
+        <div class="dir-class-table-wrap">
+          <table class="dir-class-table">
+            <thead>
+              <tr>
+                <th>Класс</th>
+                <th>Кол-во учеников</th>
+                <th>Ср. балл ДЗ</th>
+                <th>Статус</th>
+                <th>Самый слабый предмет</th>
+                <th>Требуют внимания</th>
+                <th>Динамика</th>
+              </tr>
+            </thead>
+            <tbody id="dirClassTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /dir-section -->
+
+    <!-- Предметы учителя -->
+    <div class="teacher-subjects" id="teacherSubjects">
+      <div class="ts-title">Мои предметы</div>
+      <div class="ts-grid">
+        <div class="ts-card" data-subj="math">
+          <div class="ts-ico" style="background:#3b5bff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <span class="ts-name">Математика</span>
+        </div>
+        <div class="ts-card" data-subj="physics">
+          <div class="ts-ico" style="background:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <span class="ts-name">Физика</span>
+        </div>
+        <div class="ts-card" data-subj="chemistry">
+          <div class="ts-ico" style="background:#12c99b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <span class="ts-name">Химия</span>
+        </div>
+        <div class="ts-card" data-subj="biology">
+          <div class="ts-ico" style="background:#22c55e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <span class="ts-name">Биология</span>
+        </div>
+        <div class="ts-card" data-subj="russian">
+          <div class="ts-ico" style="background:#f5a623"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <span class="ts-name">Русский язык</span>
+        </div>
+        <div class="ts-card" data-subj="english">
+          <div class="ts-ico" style="background:#18d8e8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <span class="ts-name">Английский язык</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Страница предмета (оверлей) -->
+    <div class="subj-page" id="subjPage">
+      <button class="subj-back" id="subjBack">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        К предметам
+      </button>
+      <div class="subj-page-head">
+        <div class="subj-page-ico" id="subjPageIco" style="background:#3b5bff">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/><line x1="4" y1="6" x2="4.01" y2="6"/><line x1="4" y1="12" x2="4.01" y2="12"/><line x1="4" y1="18" x2="4.01" y2="18"/></svg>
+        </div>
+        <div class="subj-page-name" id="subjPageName">Математика</div>
+      </div>
+      <!-- Фильтры предмета -->
+      <div class="sp-filters uni-filter">
+        <div class="uf-group">
+          <span class="uf-lbl">От</span>
+          <input type="date" class="uf-ctrl" id="spFilterFrom" value="2025-12-17">
+        </div>
+        <div class="uf-group">
+          <span class="uf-lbl">До</span>
+          <input type="date" class="uf-ctrl" id="spFilterTo" value="2026-06-15">
+        </div>
+        <div class="uf-sep"></div>
+        <div class="uf-group">
+          <span class="uf-lbl">Класс</span>
+          <select class="uf-ctrl uf-sel" id="spFilterClass">
+            <option value="">Все классы</option>
+            <option value="8А">8А</option>
+            <option value="8Б">8Б</option>
+            <option value="9А">9А</option>
+            <option value="9Б">9Б</option>
+          </select>
+        </div>
+        <div class="uf-group">
+          <span class="uf-lbl">Группа</span>
+          <select class="uf-ctrl uf-sel" id="spFilterGroup">
+            <option value="">Все группы</option>
+            <option value="Группа 1">Группа 1</option>
+            <option value="Группа 2">Группа 2</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Топ: большой балл + сравнение -->
+      <div class="sp-top-row">
+        <div class="sp-score-card">
+          <div class="sp-ring-wrap">
+            <svg class="sp-ring" viewBox="0 0 120 120">
+              <circle class="sp-ring-bg" cx="60" cy="60" r="50"/>
+              <circle class="sp-ring-fg" id="subjRingFg" cx="60" cy="60" r="50"/>
+            </svg>
+            <div class="sp-ring-overlay">
+              <div class="sp-score-big" id="subjScoreBig">74</div>
+              <div class="sp-score-max">/100</div>
+            </div>
+          </div>
+          <div class="sp-score-lbl">Средний балл по предмету</div>
+        </div>
+        <div class="sp-compare-card">
+          <div class="sp-compare-title">Сравнение с другими предметами</div>
+          <div id="subjCompareList"></div>
+        </div>
+      </div>
+
+      <!-- Составляющие среднего балла -->
+      <div class="sp-stats-row">
+        <div class="sp-stat">
+          <div class="sp-stat-ico" id="subjIco1" style="background:#3b5bff">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <div class="sp-stat-num" id="subjHwAvg">67</div>
+          <div class="sp-hw-badge hi" id="subjHwBadge">Хороший</div>
+          <div class="sp-stat-lbl">Средняя оценка за ДЗ</div>
+        </div>
+        <div class="sp-stat">
+          <div class="sp-stat-ico" id="subjIco2" style="background:#12c99b">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </div>
+          <div class="sp-stat-num" id="subjTopicsPct">84%</div>
+          <div class="sp-stat-lbl">Тем пройдено</div>
+        </div>
+        <div class="sp-stat">
+          <div class="sp-stat-ico" id="subjIco3" style="background:#f5a623">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="sp-stat-num" id="subjTestsPct">71%</div>
+          <div class="sp-stat-lbl">Тестов выполнено</div>
+        </div>
+      </div>
+
+      <!-- Динамика успеваемости -->
+      <div class="sp-dynamics">
+        <div class="sp-dynamics-title">Динамика успеваемости</div>
+        <canvas id="cSubjDynamic" style="max-height:200px"></canvas>
+      </div>
+
+      <!-- Проблемные темы + круговая ДЗ -->
+      <div class="sp-mid-row">
+        <div class="sp-prob-card">
+          <div class="sp-prob-title">Проблемные темы</div>
+          <div id="subjProbList"></div>
+        </div>
+        <div class="sp-dz-card">
+          <div class="sp-dz-title">Результаты ДЗ</div>
+          <div class="sp-dz-canvas-wrap"><canvas id="cSubjDZ"></canvas></div>
+          <div id="subjDzLegend"></div>
+        </div>
+      </div>
+
+      <!-- Таблица учеников -->
+      <div class="sp-tbl-card">
+        <div class="sp-tbl-title">Ученики</div>
+        <div style="overflow-x:auto">
+          <table class="sp-tbl">
+            <thead>
+              <tr>
+                <th>#</th><th>Имя</th><th>Фамилия</th><th>Пол</th>
+                <th>Класс</th><th>Группа</th><th>Ср. результат по ДЗ</th><th>Самая слабая тема</th>
+              </tr>
+            </thead>
+            <tbody id="subjStudentsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- вкладки: Образование · Финансы · Маркет · Система -->
+    <div class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="system">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+        Система</button>
+      <button class="tab-btn" data-tab="edu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4 2 9l10 5 10-5zM6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5M22 9v5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Образование</button>
+      <button class="tab-btn" data-tab="fin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2H3zM3 9h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 14h2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Финансы</button>
+      <button class="tab-btn" data-tab="market">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 7h14l-1 13H6zM8 7a4 4 0 0 1 8 0" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Маркет</button>
+    </div>
+
+    <!-- общий детальный фильтр (один на вкладку, действует на все графики) -->
+    <div class="tabfilter" data-tabfilter="edu"><div class="filter-bar" data-scope="full"></div></div>
+    <div class="tabfilter" data-tabfilter="fin"><div class="filter-bar" data-scope="short"></div></div>
+    <div class="tabfilter" data-tabfilter="market"><div class="filter-bar" data-scope="short"></div></div>
+    <div class="tabfilter" data-tabfilter="system"><div class="filter-bar" data-scope="short"></div></div>
+
+    <!-- графики (распределены по вкладкам через data-domain) -->
+    <div class="grid">
+      <!-- Система: 2 графика 50/50 -->
+      <div class="card-pair" data-domain="system">
+        <div class="card" data-card="studmonth">
+          <div class="card-head">
+            <div><h3>Статистика добавления учеников по месяцам</h3></div>
+          </div>
+          <div class="chart-legend">
+            <span><i style="background:var(--pink)"></i>Девочек</span>
+            <span><i style="background:#3ea0f7"></i>Мальчиков</span>
+          </div>
+          <div class="chart-wrap"><canvas id="cStudentsMonth"></canvas></div>
+        </div>
+        <div class="card" data-card="ai">
+          <div class="card-head">
+            <div><h3>Нагрузка на ИИ-репетитора</h3>
+              <div class="sub">Обращения к ассистенту и израсходованные токены</div>
+            </div>
+            <div class="pill-group">
+              <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+              <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+            </div>
+          </div>
+          <div class="chart-wrap sm"><canvas id="cAI"></canvas></div>
+        </div>
+      </div>
+      <div class="card" data-card="subsales">
+        <div class="card-head">
+          <div><h3>Кол-во продаж подписки</h3></div>
+        </div>
+        <div class="donut-row">
+          <div class="donut-canvas">
+            <canvas id="cSubSales"></canvas>
+            <div class="donut-center"><div class="num" id="subSalesTotal">53</div><div class="unit">шт</div></div>
+          </div>
+          <div class="legend" id="subSalesLegend"></div>
+        </div>
+      </div>
+
+  <!-- 1. Рейтинг активности -->
+  <div class="card span2" data-card="activity">
+    <div class="card-head">
+      <div>
+        <h3>Активность и награды</h3>
+        <div class="sub" id="actSub">Очки опыта и Bekcoin · по всем регионам</div>
+      </div>
+      <div class="pill-group">
+        <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+        <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+      </div>
+    </div>
+    <div class="filter-bar" id="actFilters">
+      <div class="filter-field"><label>Регион</label>
+        <div class="select-wrap">
+          <select data-f="region"><option value="">Все регионы</option>
+            <option>Ташкент</option><option>Самарканд</option><option>Бухара</option>
+            <option>Андижан</option><option>Наманган</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Район</label>
+        <div class="select-wrap">
+          <select data-f="dist" disabled><option value="">Все районы</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Школа</label>
+        <div class="select-wrap">
+          <select data-f="school" disabled><option value="">Все школы</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Класс</label>
+        <div class="select-wrap">
+          <select data-f="grade" disabled><option value="">Все классы</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Группа</label>
+        <div class="select-wrap">
+          <select data-f="group" disabled><option value="">Все группы</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Предмет</label>
+        <div class="select-wrap">
+          <select data-f="subj"><option value="">Все предметы</option>
+            <option>Математика</option><option>Физика</option><option>Английский</option>
+            <option>Химия</option><option>Биология</option><option>История</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="cActivity"></canvas></div>
+  </div>
+
+  <!-- 3. Статус выдачи призов -->
+  <div class="card" data-card="orders">
+    <div class="card-head">
+      <div><h3>Статус выдачи призов</h3></div>
+      <div class="pill-group">
+        <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+        <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+      </div>
+    </div>
+    <div class="donut-row">
+      <div class="donut-canvas">
+        <canvas id="cOrders"></canvas>
+        <div class="donut-center">
+          <div class="num" id="ordTotal">0</div>
+          <div class="unit">заказов</div>
+        </div>
+      </div>
+      <div class="legend" id="ordLegend"></div>
+    </div>
+  </div>
+
+  <!-- 2. Привычка учиться -->
+  <div class="card" data-card="streak">
+    <div class="card-head">
+      <div>
+        <h3>Привычка учиться</h3>
+        <div class="sub" id="streakSub">Доля учеников по длине серии без пропусков</div>
+      </div>
+    </div>
+    <div class="donut-row">
+      <div class="donut-canvas">
+        <canvas id="cStreak"></canvas>
+        <div class="donut-center"><div class="num" id="streakTotal">0</div><div class="unit">учеников</div></div>
+      </div>
+      <div class="legend" id="streakLegend"></div>
+    </div>
+  </div>
+
+  <!-- 4. Топ популярных товаров -->
+  <div class="card span2" data-card="products">
+    <div class="card-head">
+      <div><h3>Топ популярных товаров</h3>
+        <div class="sub">По числу покупок за Bekcoin</div>
+      </div>
+      <div class="pill-group">
+        <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+        <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+      </div>
+    </div>
+    <div class="prod-list" id="prodList"></div>
+  </div>
+
+  <!-- 7. Тепловая карта активности -->
+  <div class="card span3" data-card="heat">
+    <div class="card-head">
+      <div><h3>Тепловая карта активности</h3>
+        <div class="sub">Пиковые часы входов · число активных учеников</div>
+      </div>
+      <div class="pill-group">
+        <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+        <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+      </div>
+    </div>
+    <div class="heat" id="heat"></div>
+  </div>
+
+  <!-- 8. Воронка попыток -->
+  <div class="card" data-card="funnel">
+    <div class="card-head">
+      <div><h3>Сложность образовательной программы</h3>
+        <div class="sub">Попытки решения задач</div>
+      </div>
+      <div class="pill-group">
+        <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+        <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+      </div>
+    </div>
+    <div class="donut-row">
+      <div class="donut-canvas">
+        <canvas id="cFunnel"></canvas>
+        <div class="donut-center"><div class="num" id="funTotal">0</div><div class="unit">задач</div></div>
+      </div>
+      <div class="legend" id="funLegend"></div>
+    </div>
+  </div>
+
+  <!-- 9. Темп прохождения программы -->
+  <div class="card span2" data-card="prog">
+    <div class="card-head">
+      <div><h3>Темп прохождения программы</h3>
+        <div class="sub" id="progSub">Пройдено уроков · параллели 5–11</div>
+      </div>
+      <div class="pill-group">
+        <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+        <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+      </div>
+    </div>
+    <div class="filter-bar" id="progFilters">
+      <div class="filter-field"><label>Регион</label>
+        <div class="select-wrap">
+          <select data-f="region"><option value="">Все регионы</option>
+            <option>Ташкент</option><option>Самарканд</option><option>Бухара</option>
+            <option>Андижан</option><option>Наманган</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Район</label>
+        <div class="select-wrap">
+          <select data-f="dist" disabled><option value="">Все районы</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Школа</label>
+        <div class="select-wrap">
+          <select data-f="school" disabled><option value="">Все школы</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Класс</label>
+        <div class="select-wrap">
+          <select data-f="grade" disabled><option value="">Все классы</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Группа</label>
+        <div class="select-wrap">
+          <select data-f="group" disabled><option value="">Все группы</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+      <div class="filter-field"><label>Предмет</label>
+        <div class="select-wrap">
+          <select data-f="subj"><option value="">Все предметы</option>
+            <option>Математика</option><option>Физика</option><option>Английский</option>
+            <option>Химия</option><option>Биология</option><option>История</option></select>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+      </div>
+    </div>
+    <div class="prog-list" id="prog"></div>
+  </div>
+
+  <!-- 10. Рейтинг учеников -->
+  <div class="card span3" data-card="leaderboard">
+    <div class="card-head">
+      <div><h3>Рейтинг учеников</h3>
+        <div class="sub" id="lbSub">Топ учеников по очкам опыта</div>
+      </div>
+      <div class="pill-group">
+        <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+        <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+      </div>
+    </div>
+    <div class="lb-body">
+      <div class="lb-stats">
+        <div class="lb-stat"><span class="v" id="lbTotal">0</span><span class="l">учеников</span></div>
+        <div class="lb-stat"><span class="v" id="lbAvg">0</span><span class="l">средний XP</span></div>
+        <div class="lb-stat"><span class="v" id="lbSum">0</span><span class="l">суммарный XP</span></div>
+      </div>
+      <div class="lb-podium" id="lbTop"></div>
+      <button class="lb-more" id="lbMore"><span>Подробнее</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+  </div>
+
+  <!-- 11. Ученики, которым нужна помощь -->
+  <div class="card span2" data-card="help">
+    <div class="card-head">
+      <div><h3>Ученики, которым нужна помощь</h3>
+        <div class="sub" id="helpSub">Среднее число попыток на задание · топ по трудностям</div>
+      </div>
+      <div class="head-right">
+        <div class="pill-group">
+          <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+          <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+        </div>
+        <div class="card-tools">
+          <button class="icon-btn" data-dl title="Скачать отчёт">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg></button>
+          <div class="card-menu">
+            <button class="icon-btn" data-menu title="Меню">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg></button>
+            <div class="card-menu-pop">
+              <button data-act="export"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg>Скачать CSV</button>
+              <button data-act="refresh"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>Обновить данные</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-bar" id="helpFilters"></div>
+    <div class="hbar-list" id="helpList"></div>
+  </div>
+
+  <!-- 12. Проблемные предметы в регионе -->
+  <div class="card" data-card="subjreq">
+    <div class="card-head">
+      <div><h3>Проблемные предметы</h3>
+        <div class="sub" id="subjreqSub">Запросы к ИИ-репетитору по предметам</div>
+      </div>
+      <div class="head-right">
+        <div class="pill-group">
+          <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+          <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+        </div>
+        <div class="card-tools">
+          <button class="icon-btn" data-dl title="Скачать отчёт">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div class="filter-bar" id="subjreqFilters"></div>
+    <div class="donut-row">
+      <div class="donut-canvas">
+        <canvas id="cAISubj"></canvas>
+        <div class="donut-center">
+          <div class="num" id="aiSubjTotal">0</div>
+          <div class="unit">запросов</div>
+        </div>
+      </div>
+      <div class="legend" id="aiSubjLegend"></div>
+    </div>
+  </div>
+
+  <!-- 13. Самые сложные темы -->
+  <div class="card span2" data-card="topics">
+    <div class="card-head">
+      <div><h3>Самые сложные темы</h3>
+        <div class="sub" id="topicsSub">Среднее число попыток на тему урока · класс</div>
+      </div>
+      <div class="head-right">
+        <div class="pill-group">
+          <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+          <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+        </div>
+        <div class="card-tools">
+          <button class="icon-btn" data-dl title="Скачать отчёт">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg></button>
+          <div class="card-menu">
+            <button class="icon-btn" data-menu title="Меню">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg></button>
+            <div class="card-menu-pop">
+              <button data-act="export"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg>Скачать CSV</button>
+              <button data-act="refresh"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>Обновить данные</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-bar" id="topicsFilters"></div>
+    <div class="chart-wrap sm"><canvas id="cTopics"></canvas></div>
+  </div>
+
+  <!-- 14. Рейтинг цифровой вовлечённости школ -->
+  <div class="card" data-card="schoolrank">
+    <div class="card-head">
+      <div><h3>Вовлечённость школ</h3>
+        <div class="sub" id="schoolSub">Средние Билим-баллы на ученика</div>
+      </div>
+      <div class="head-right">
+        <div class="seg" id="schoolSeg">
+          <button data-days="7">Неделя</button>
+          <button data-days="30" class="active">Месяц</button>
+          <button data-days="90">Квартал</button>
+        </div>
+        <div class="card-tools">
+          <button class="icon-btn" data-dl title="Скачать отчёт">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div class="filter-bar" id="schoolrankFilters"></div>
+    <div class="sl-list" id="schoolList"></div>
+  </div>
+
+  <!-- 15. Продажи по способам оплаты -->
+  <div class="card" data-card="payments">
+    <div class="card-head">
+      <div><h3>Продажи по способам оплаты</h3></div>
+    </div>
+    <div class="donut-row">
+      <div class="donut-canvas">
+        <canvas id="cPay"></canvas>
+        <div class="donut-center">
+          <div class="num" id="payTotal">0</div>
+          <div class="unit">сум</div>
+        </div>
+      </div>
+      <div class="legend" id="payLegend"></div>
+    </div>
+  </div>
+
+    <div class="card" data-card="paystatus">
+      <div class="card-head">
+        <div><h3>Статус платежей</h3></div>
+        <div class="pick"><span>Июнь</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9h18M8 2.5v4M16 2.5v4" stroke-linecap="round"/></svg></div>
+      </div>
+      <div class="donut-row">
+        <div class="donut-canvas"><canvas id="cPayStatus"></canvas>
+          <div class="donut-center"><div class="num" id="payStatusTotal">0</div><div class="unit">всего</div></div>
+        </div>
+        <div class="legend" id="payStatusLegend"></div>
+      </div>
+    </div>
+
+  <!-- Финансы: нижний ряд 50/50 — платежи по месяцам + баланс экономики -->
+  <div class="card-pair" data-domain="fin">
+    <div class="card" data-card="paymonth">
+      <div class="card-head">
+        <div><h3>Статистика платежей по месяцам</h3></div>
+      </div>
+      <div class="chart-wrap"><canvas id="cPayMonth"></canvas></div>
+    </div>
+    <div class="card" data-card="economy">
+      <div class="card-head">
+        <div>
+          <h3>Баланс виртуальной экономики</h3>
+          <div class="sub">Заработано против потрачено · Bekcoin</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="cEconomy"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Использование приложения (Образование) -->
+    <div class="card span3" data-card="appusage">
+      <div class="card-head">
+        <div><h3>Использование приложения</h3>
+          <div class="sub" id="appusageSub">Активные сессии по месяцам</div>
+        </div>
+        <div class="head-right">
+          <div class="pill-group">
+            <label class="pill"><span class="tag">от</span><input type="date" data-role="from"></label>
+            <label class="pill"><span class="tag">до</span><input type="date" data-role="to"></label>
+          </div>
+          <div class="card-tools">
+            <button class="icon-btn" data-dl title="Скачать отчёт">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg></button>
+            <div class="card-menu">
+              <button class="icon-btn" data-menu title="Меню">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg></button>
+              <div class="card-menu-pop">
+                <button data-act="export"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg>Скачать CSV</button>
+                <button data-act="refresh"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>Обновить данные</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="filter-bar" id="appusageFilters"></div>
+      <div class="chart-wrap"><canvas id="cAppUsage"></canvas></div>
+    </div>
+  </div>
+
+  </main>
+</div><!-- /.app -->
+
+<!-- Полноэкранная таблица рейтинга -->
+<div class="lb-modal" id="lbModal" aria-hidden="true">
+  <div class="lb-modal-card">
+    <div class="lb-modal-head">
+      <div><h2>Рейтинг учеников</h2><p id="lbModalSub">Всего: 0</p></div>
+      <div class="lb-modal-actions">
+        <button class="lb-export" id="lbExport">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg>
+          Экспорт таблицы</button>
+        <button class="lb-close" id="lbClose" title="Закрыть">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+    </div>
+    <div class="lb-toolbar">
+      <div class="lb-search">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" id="lbSearch" placeholder="Поиск по имени или школе…">
+      </div>
+      <div class="select-wrap">
+        <select id="lbFsubj"><option value="">Все предметы</option></select>
+        <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+      </div>
+      <div class="select-wrap">
+        <select id="lbFgrade"><option value="">Все классы</option></select>
+        <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>
+      </div>
+      <span class="lb-count" id="lbCount"></span>
+    </div>
+    <div class="lb-table-wrap">
+      <table class="lb-table">
+        <thead><tr>
+          <th class="c-rank">#</th><th>Имя</th><th>Предмет</th><th>Школа</th>
+          <th>Регион</th><th>Класс</th><th>Группа</th><th class="num">XP</th><th class="num">Bekcoin</th>
+        </tr></thead>
+        <tbody id="lbTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ THEME ============ */
+const C = {blue:'#3b5bff',violet:'#8b5cf6',cyan:'#18d8e8',teal:'#12c99b',
+  pink:'#e94fd0',red:'#ff3b3b',lav:'#c9cbff',ink:'#121524',muted:'#8a91a6',grid:'#eef0f6'};
+Chart.defaults.font.family="'Inter',sans-serif";
+Chart.defaults.font.size=12;
+Chart.defaults.color=C.muted;
+Chart.defaults.plugins.legend.display=false;
+const tooltip={backgroundColor:'#fff',titleColor:C.ink,bodyColor:'#3a4256',
+  borderColor:'#eef0f6',borderWidth:1,padding:12,cornerRadius:12,
+  titleFont:{weight:'700',size:12.5},bodyFont:{weight:'600',size:12.5},
+  usePointStyle:true,boxPadding:6,caretSize:0};
+const glow=(color)=>({id:'glow',
+  beforeDatasetsDraw(c){c.ctx.save();c.ctx.shadowColor=color;c.ctx.shadowBlur=14;},
+  afterDatasetsDraw(c){c.ctx.restore();}});
+function vGrad(ctx,area,from,to){const g=ctx.createLinearGradient(0,area.top,0,area.bottom);
+  g.addColorStop(0,from);g.addColorStop(1,to);return g;}
+const axX={grid:{display:false},border:{display:false},ticks:{font:{weight:'600'},maxRotation:0,autoSkip:true,maxTicksLimit:12}};
+const axY=(fmt)=>({grid:{color:C.grid,drawTicks:false},border:{display:false},
+  beginAtZero:true,ticks:{font:{weight:'600'},padding:8,callback:fmt}});
+const kFmt=v=>v>=1000?(v/1000)+'k':v;
+const mlnFmt=v=>(v/1e6).toFixed(v>=1e6?0:1)+' млн';
+
+/* ============ DATA LAYER (1 год дневных данных) ============ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const rng=mulberry32(20260615);
+function hash(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+
+/* иерархия для умных фильтров рейтинга */
+const REGIONS={
+  'Ташкент':['Юнусабад','Чиланзар','Мирзо-Улугбек','Яккасарай','Сергели'],
+  'Самарканд':['Центральный','Багишамал','Сиабский','Гузалкент'],
+  'Бухара':['Каган','Ромитан','Гиждуван'],
+  'Андижан':['Асака','Шахрихан','Балыкчи'],
+  'Наманган':['Чуст','Касансай','Учкурган'],
+};
+const CLASSES=['5 класс','6 класс','7 класс','8 класс','9 класс','10 класс','11 класс'];
+const GROUPS=['Группа A','Группа B','Группа C'];
+function schoolsOf(region,dist){
+  const r=mulberry32(hash(region+'|'+dist));
+  const types=['Лицей','Гимназия','Школа','IT-школа','Эко-лицей'];
+  const n=4+Math.floor(r()*3),out=[],used=new Set();
+  for(let i=0;i<n;i++){let num;do{num=10+Math.floor(r()*89);}while(used.has(num));used.add(num);
+    out.push(types[Math.floor(r()*types.length)]+' №'+num);}
+  return out;
+}
+function metricVal(id,days,salt,min,span){const r=mulberry32(hash(id+'§'+salt));return Math.round((min+r()*span)*days);}
+
+/* список учеников для рейтинга (детерминированный мок) */
+const SUBJECTS=['Математика','Физика','Английский','Химия','Биология','История'];
+const LB_FIRST=['Алишер','Дилноза','Тимур','Малика','Сардор','Нигора','Жасур','Камила','Бекзод','Зарина','Отабек','Севара','Рустам','Феруза','Шахзод','Гульнора','Икром','Мадина','Достон','Лола','Азиз','Нодира','Фаррух','Шахноза','Улугбек','Дилфуза','Жахонгир','Манзура','Бахтиёр','Ситора','Элёр','Камола','Шерзод','Барно','Хуршид'];
+const LB_LAST=['Каримов','Юсупова','Рахимов','Тошматова','Эргашев','Абдуллаева','Назаров','Исмаилова','Холматов','Сафарова','Мирзаев','Юлдашева','Ахмедов','Турсунова','Камолов','Хасанова','Усмонов','Раджабова','Кодиров','Алимова','Содиков','Маматова','Эшонов','Юнусова'];
+const STUDENTS=(()=>{
+  const r=mulberry32(0x5bEED5),regs=Object.keys(REGIONS),arr=[];
+  for(let i=0;i<164;i++){
+    const fem=r()<0.5;
+    const name=LB_FIRST[Math.floor(r()*LB_FIRST.length)]+' '+LB_LAST[Math.floor(r()*LB_LAST.length)];
+    const reg=regs[Math.floor(r()*regs.length)];
+    const dist=REGIONS[reg][Math.floor(r()*REGIONS[reg].length)];
+    const schools=schoolsOf(reg,dist),school=schools[Math.floor(r()*schools.length)];
+    const grade=5+Math.floor(r()*7);
+    const group=['A','B','C'][Math.floor(r()*3)];
+    const subj=SUBJECTS[Math.floor(r()*SUBJECTS.length)];
+    const baseXp=Math.round(900+r()*9200);            // XP за 180 дней
+    arr.push({name,reg,dist,school,grade,group,subj,baseXp});
+  }
+  return arr;
+})();
+let LB_ROWS=[]; // текущий рейтинг с учётом периода (заполняет updaters.leaderboard)
+
+/* ===== данные для 4 новых виджетов ===== */
+// W1: аватары/инициалы для списка учеников (значения генерятся по срезу фильтра)
+const AV_COLORS=['#3b5bff','#8b5cf6','#12c99b','#18d8e8','#e94fd0','#f5a623','#5b6bff'];
+const initials=n=>n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+// W3: проблемные предметы (запросы к ИИ)
+const AISUBJ=[
+  {name:'Математика',color:C.blue,bg:'#e7ebff',base:1850},
+  {name:'Физика',color:C.violet,bg:'#efeaff',base:1320},
+  {name:'Химия',color:C.cyan,bg:'#e3fafd',base:980},
+  {name:'Английский',color:C.teal,bg:'#e3f8f1',base:760},
+  {name:'Биология',color:C.pink,bg:'#fde9f9',base:540},
+  {name:'История',color:'#f5a623',bg:'#fdf0db',base:410},
+];
+// темы уроков по предметам (для drill-down по предмету)
+const TOPICS_DEFAULT=['Квадратные уравнения','Логарифмы','Тригонометрия','Производные','Дроби','Векторы'];
+const TOPICS_BY_SUBJ={
+  'Математика':['Квадратные уравнения','Логарифмы','Тригонометрия','Производные','Дроби','Векторы'],
+  'Физика':['Законы Ньютона','Электрический ток','Оптика','Термодинамика','Кинематика','Магнетизм'],
+  'Английский':['Present Perfect','Условные предложения','Пассивный залог','Фразовые глаголы','Артикли','Времена'],
+  'Химия':['Валентность','Окисление','Молярная масса','Электролиз','Органика','Кислоты и щёлочи'],
+  'Биология':['Митоз','Фотосинтез','Генетика','Кровообращение','Экосистемы','Эволюция'],
+  'История':['Шёлковый путь','Тимуриды','Реформы','Хронология','Древний мир','XX век'],
+};
+const DONUT_PAL=[[C.blue,'#e7ebff'],[C.violet,'#efeaff'],[C.cyan,'#e3fafd'],[C.teal,'#e3f8f1'],[C.pink,'#fde9f9'],['#f5a623','#fdf0db']];
+// W4: вовлечённость школ
+const SCHOOL_RANK=[
+  {name:'Лицей №1 «Билим»',base:520},{name:'IT-школа №7',base:470},{name:'Гимназия №27',base:430},
+  {name:'Школа №64',base:360},{name:'Эко-лицей №3',base:300},
+];
+// W15: продажи по способам оплаты (лазурный Payme · синий Click · фиолетовый Uzum)
+const PAY_METHODS=[
+  {name:'Payme',color:C.cyan,bg:'#e3fafd',base:46_000_000},
+  {name:'Click',color:C.blue,bg:'#e7ebff',base:38_000_000},
+  {name:'Uzum',color:C.violet,bg:'#efeaff',base:29_000_000},
+];
+// небольшое детерминированное колебание значений от выбранного периода
+const jitter=(salt,days,amp)=>1+(mulberry32(hash(salt+'#'+days))()*2-1)*amp;
+
+/* реестр данных для кнопок «Скачать отчёт» */
+const EXPORTS={};
+function downloadCSV(file,head,rows){
+  const esc=v=>{v=String(v);return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const lines=[head.map(esc).join(';')].concat(rows.map(r=>r.map(esc).join(';')));
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=file;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+
+const SCHOOLS=['Лицей №1','Гимназия 27','Школа 64','IT-школа','Школа 12','Эко-лицей','Школа 188','Школа 5','Гимназия 9','Школа 33'];
+const schoolW=SCHOOLS.map((_,i)=>0.55+((i*7+3)%10)/9);
+const PRODUCTS=[
+  {ico:'🎒',name:'Рюкзак AI-BEK',color:C.blue,base:14},
+  {ico:'🎧',name:'Наушники',color:C.violet,base:11},
+  {ico:'🧢',name:'Кепка',color:C.cyan,base:9},
+  {ico:'📓',name:'Блокнот',color:C.teal,base:8},
+  {ico:'🖊️',name:'Ручка-стилус',color:C.pink,base:6},
+  {ico:'⌚',name:'Смарт-часы',color:'#f4a32a',base:4},
+];
+const STREAK=Array.from({length:30},(_,i)=>String(i+1)); // каждый день: 1..30
+const MON=['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+const DAY=86400000;
+
+const START=new Date(2025,5,15), END=new Date(2026,5,15);
+const allDays=[];
+for(let t=new Date(START);t<=END;t.setDate(t.getDate()+1)) allDays.push(new Date(t));
+
+const DATA=allDays.map((d)=>{
+  const dow=d.getDay();
+  const wd=(dow>=1&&dow<=5)?1:0.45;                 // выходные ниже
+  const seas=1+0.25*Math.sin((d-START)/DAY/365*2*Math.PI); // годовая волна
+  const schoolXP=SCHOOLS.map((_,i)=>Math.round((200+170*rng()+110*Math.sin((i+d.getDate())/3))*schoolW[i]*wd*seas*0.6+50));
+  const processing=Math.round((18+22*rng())*wd+2);
+  const issued=Math.round((6+10*rng())*wd+1);
+  const cancelled=Math.round((1+4*rng())*wd);
+  const products=PRODUCTS.map(p=>Math.round(p.base*(0.5+0.9*rng())*wd));
+  const earned=Math.round((90000+60000*rng())*wd*seas);
+  const spent=Math.round((45000+45000*rng())*wd*seas);
+  const ai=Math.round((520+420*rng())*(0.35+1.25*wd)*seas);
+  const streak=STREAK.map((_,bi)=>Math.round(420*Math.pow(0.9,bi)*(0.7+0.6*rng())*wd));
+  return {date:d,schoolXP,processing,issued,cancelled,products,earned,spent,ai,streak};
+});
+
+const range=(a,b)=>DATA.filter(r=>r.date>=a&&r.date<=b);
+const sum=(rows,f)=>rows.reduce((s,r)=>s+r[f],0);
+function groupRows(rows){
+  const n=rows.length;
+  const mode=n<=16?'day':n<=92?'week':'month';
+  const ddmm=d=>d.getDate()+'.'+(d.getMonth()+1);
+  const groups=[];
+  if(mode==='day') rows.forEach(r=>groups.push({label:ddmm(r.date),rows:[r]}));
+  else if(mode==='week') for(let i=0;i<n;i+=7){const c=rows.slice(i,i+7);groups.push({label:ddmm(c[0].date),rows:c});}
+  else{const m=new Map();rows.forEach(r=>{const k=r.date.getFullYear()+'-'+r.date.getMonth();
+    if(!m.has(k))m.set(k,{label:MON[r.date.getMonth()],rows:[]});m.get(k).rows.push(r);});
+    m.forEach(v=>groups.push(v));}
+  return groups;
+}
+
+/* ============ CHARTS ============ */
+const chActivity=new Chart(document.getElementById('cActivity'),{type:'bar',
+  data:{labels:[],datasets:[
+    {label:'Очки опыта (XP)',yAxisID:'y',data:[],borderRadius:{topLeft:7,topRight:7},borderSkipped:false,
+      maxBarThickness:28,categoryPercentage:.7,barPercentage:.92,
+      backgroundColor(ctx){const a=ctx.chart.chartArea;return a?vGrad(ctx.chart.ctx,a,C.blue,'#8aa0ff'):C.blue;}},
+    {label:'Bekcoin',yAxisID:'y1',data:[],borderRadius:{topLeft:7,topRight:7},borderSkipped:false,
+      maxBarThickness:28,categoryPercentage:.7,barPercentage:.92,
+      backgroundColor(ctx){const a=ctx.chart.chartArea;return a?vGrad(ctx.chart.ctx,a,'#f5a623','#ffcf7a'):'#f5a623';}}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:{display:true,position:'top',align:'end',
+        labels:{usePointStyle:true,pointStyle:'circle',boxWidth:8,boxHeight:8,padding:16,font:{weight:'600',size:12.5},color:'#3a4256'}},
+      tooltip:{...tooltip,callbacks:{label:i=>' '+i.dataset.label+': '+i.parsed.y.toLocaleString('ru-RU')+(i.dataset.yAxisID==='y1'?' BC':' XP')}}},
+    scales:{x:axX,
+      y:{...axY(kFmt),position:'left'},
+      y1:{...axY(kFmt),position:'right',grid:{display:false}}}}});
+
+const chStreak=new Chart(document.getElementById('cStreak'),{type:'doughnut',
+  data:{labels:[],datasets:[{data:[],backgroundColor:[],borderWidth:0,borderRadius:9,spacing:3,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
+    plugins:{tooltip:{...tooltip,callbacks:{label:i=>' '+i.parsed.toLocaleString('ru-RU')+' учеников'}}}},
+  plugins:[glow('rgba(18,201,155,.30)')]});
+
+const chOrders=new Chart(document.getElementById('cOrders'),{type:'doughnut',
+  data:{labels:['В обработке','Выдано','Отменено'],datasets:[{data:[1,1,1],
+    backgroundColor:[C.violet,C.teal,C.red],borderWidth:0,borderRadius:10,spacing:3,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'74%',
+    plugins:{tooltip:{...tooltip,callbacks:{label:i=>' '+i.parsed.toLocaleString('ru-RU')}}}},
+  plugins:[glow('rgba(139,92,246,.4)')]});
+
+const chFunnel=new Chart(document.getElementById('cFunnel'),{type:'doughnut',
+  data:{labels:[],datasets:[{data:[],backgroundColor:[],borderWidth:0,borderRadius:8,spacing:3,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
+    plugins:{tooltip:{...tooltip,callbacks:{label:i=>' '+i.parsed+'%'}}}},
+  plugins:[glow('rgba(59,91,255,.35)')]});
+
+const chEconomy=new Chart(document.getElementById('cEconomy'),{type:'line',
+  data:{labels:[],datasets:[
+    {label:'Заработано',data:[],borderColor:C.blue,borderWidth:3,tension:.45,fill:true,pointRadius:0,pointHoverRadius:5,
+      pointBackgroundColor:'#fff',pointBorderColor:C.blue,pointBorderWidth:3,
+      backgroundColor(ctx){const a=ctx.chart.chartArea;return a?vGrad(ctx.chart.ctx,a,'rgba(59,91,255,.20)','rgba(59,91,255,0)'):'transparent';}},
+    {label:'Потрачено',data:[],borderColor:C.cyan,borderWidth:3,tension:.45,fill:true,pointRadius:0,pointHoverRadius:5,
+      pointBackgroundColor:'#fff',pointBorderColor:C.cyan,pointBorderWidth:3,
+      backgroundColor(ctx){const a=ctx.chart.chartArea;return a?vGrad(ctx.chart.ctx,a,'rgba(24,216,232,.18)','rgba(24,216,232,0)'):'transparent';}}]},
+  options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{tooltip:{...tooltip,callbacks:{label:i=>' '+i.dataset.label+': '+(i.parsed.y/1e6).toFixed(2)+' млн'}}},
+    scales:{x:axX,y:axY(mlnFmt)}}});
+
+const tokFmt=v=>v>=1e6?(v/1e6).toFixed(1).replace('.',',')+'M':v>=1000?Math.round(v/1000)+'k':v;
+const chAI=new Chart(document.getElementById('cAI'),{type:'line',
+  data:{labels:[],datasets:[
+    {label:'Обращения',yAxisID:'y',data:[],borderColor:C.teal,borderWidth:3,tension:.5,fill:true,pointRadius:0,pointHoverRadius:5,
+      pointBackgroundColor:'#fff',pointBorderColor:C.teal,pointBorderWidth:3,
+      backgroundColor(ctx){const a=ctx.chart.chartArea;return a?vGrad(ctx.chart.ctx,a,'rgba(18,201,155,.28)','rgba(18,201,155,0)'):'transparent';}},
+    {label:'Токены',yAxisID:'y1',data:[],borderColor:C.violet,borderWidth:3,tension:.5,fill:false,pointRadius:0,pointHoverRadius:5,
+      pointBackgroundColor:'#fff',pointBorderColor:C.violet,pointBorderWidth:3}]},
+  options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:true,position:'top',align:'end',labels:{usePointStyle:true,pointStyle:'circle',boxWidth:8,boxHeight:8,padding:14,font:{weight:'600',size:12.5},color:C.muted}},
+      tooltip:{...tooltip,callbacks:{label:i=>i.dataset.label==='Токены'
+        ? ' Токенов: '+i.parsed.y.toLocaleString('ru-RU')
+        : ' Обращений: '+i.parsed.y.toLocaleString('ru-RU')}}},
+    scales:{x:axX,
+      y:{...axY(kFmt),position:'left',title:{display:true,text:'обращения',color:C.muted,font:{weight:'600'}}},
+      y1:{...axY(tokFmt),position:'right',grid:{display:false},title:{display:true,text:'токены',color:C.muted,font:{weight:'600'}}}}}});
+
+// плагин: цифры над столбцами (W2)
+const barTops={id:'barTops',afterDatasetsDraw(c){
+  const ds=c.data.datasets[0];if(!ds)return;const{ctx}=c,meta=c.getDatasetMeta(0);
+  ctx.save();ctx.font='700 12px Inter';ctx.fillStyle=C.ink;ctx.textAlign='center';ctx.textBaseline='bottom';
+  ds.data.forEach((v,i)=>{const el=meta.data[i];if(el)ctx.fillText(Number(v).toFixed(1),el.x,el.y-7);});
+  ctx.restore();}};
+
+const chTopics=new Chart(document.getElementById('cTopics'),{type:'bar',
+  data:{labels:[],datasets:[{label:'Среднее число попыток',data:[],borderRadius:{topLeft:8,topRight:8},borderSkipped:false,
+    maxBarThickness:46,categoryPercentage:.72,barPercentage:.86,backgroundColor:[]}]},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
+    plugins:{tooltip:{...tooltip,callbacks:{
+      title:i=>i[0].label,
+      label:i=>' Попыток в среднем: '+i.parsed.y.toFixed(1),
+      afterLabel:i=>' Сложность: '+(i.parsed.y>=4?'высокая':i.parsed.y>=3?'средняя':'умеренная')}}},
+    scales:{x:{...axX,ticks:{...axX.ticks,maxRotation:18,minRotation:0,font:{weight:'600',size:11.5}}},
+      y:{...axY(v=>v),title:{display:true,text:'попыток',color:C.muted,font:{weight:'600'}}}}},
+  plugins:[barTops]});
+
+const chAISubj=new Chart(document.getElementById('cAISubj'),{type:'doughnut',
+  data:{labels:[],datasets:[{data:[],backgroundColor:[],borderWidth:0,borderRadius:9,spacing:3,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
+    plugins:{tooltip:{...tooltip,callbacks:{label:i=>' '+i.parsed.toLocaleString('ru-RU')+' запросов'}}}},
+  plugins:[glow('rgba(59,91,255,.32)')]});
+
+const chPay=new Chart(document.getElementById('cPay'),{type:'doughnut',
+  data:{labels:[],datasets:[{data:[],backgroundColor:[],borderWidth:0,borderRadius:9,spacing:3,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
+    plugins:{tooltip:{...tooltip,callbacks:{label:i=>' '+i.parsed.toLocaleString('ru-RU')+' сум'}}}},
+  plugins:[glow('rgba(24,216,232,.34)')]});
+
+/* ===== эталонные графики с референса ===== */
+const MONTHS_RU=['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+const chStudentsMonth=new Chart(document.getElementById('cStudentsMonth'),{type:'line',
+  data:{labels:MONTHS_RU,datasets:[
+    {label:'Девочек',data:[0,0,1,44,30,7,1,0,0,0,0,0],borderColor:C.pink,borderWidth:3,tension:.45,fill:true,
+      pointRadius:0,pointHoverRadius:5,pointBackgroundColor:'#fff',pointBorderColor:C.pink,pointBorderWidth:3,
+      backgroundColor(ctx){const a=ctx.chart.chartArea;return a?vGrad(ctx.chart.ctx,a,'rgba(233,79,208,.18)','rgba(233,79,208,0)'):'transparent';}},
+    {label:'Мальчиков',data:[0,0,1,33,22,6,1,0,0,0,0,0],borderColor:'#3ea0f7',borderWidth:3,tension:.45,fill:true,
+      pointRadius:0,pointHoverRadius:5,pointBackgroundColor:'#fff',pointBorderColor:'#3ea0f7',pointBorderWidth:3,
+      backgroundColor(ctx){const a=ctx.chart.chartArea;return a?vGrad(ctx.chart.ctx,a,'rgba(62,160,247,.16)','rgba(62,160,247,0)'):'transparent';}}]},
+  options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{tooltip:{...tooltip,callbacks:{label:i=>' '+i.dataset.label+': '+i.parsed.y}}},
+    scales:{x:axX,y:{...axY(v=>v),suggestedMax:50,ticks:{...axY(v=>v).ticks,stepSize:10}}}}});
+
+const chSubSales=new Chart(document.getElementById('cSubSales'),{type:'doughnut',
+  data:{labels:['Старт','Оптимал','Премиум'],datasets:[{data:[0,0,53],
+    backgroundColor:[C.blue,C.cyan,C.violet],borderWidth:0,borderRadius:14,spacing:2,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'76%',
+    plugins:{tooltip:{...tooltip,callbacks:{label:i=>' '+i.parsed+' шт'}}}},
+  plugins:[glow('rgba(139,92,246,.4)')]});
+/* легенда «Кол-во продаж подписки» рендерится в updaters.subsales */
+
+/* ===== Доход от подписок + Использование приложения ===== */
+const BAR_VIOLET='#7c84f0';
+const chPayMonth=new Chart(document.getElementById('cPayMonth'),{type:'bar',
+  data:{labels:MONTHS_RU,datasets:[{data:[],backgroundColor:BAR_VIOLET,borderRadius:8,borderSkipped:false,
+    maxBarThickness:30,categoryPercentage:.62,barPercentage:.72}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{tooltip:{...tooltip,callbacks:{title:i=>i[0].label,label:i=>' '+(i.parsed.y/1e6).toFixed(1)+' млн UZS'}}},
+    scales:{x:axX,y:axY(mlnFmt)}}});
+
+const chPayStatus=new Chart(document.getElementById('cPayStatus'),{type:'doughnut',
+  data:{labels:['Активные подписки','Неактивные','Истёкшие'],datasets:[{data:[1,1,1],
+    backgroundColor:[C.teal,'#f5a623',C.red],borderWidth:0,borderRadius:9,spacing:3,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
+    plugins:{tooltip:{...tooltip,callbacks:{label:i=>' '+i.parsed}}}},
+  plugins:[glow('rgba(245,166,35,.32)')]});
+
+const APP_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m=>m+' 2026');
+const chAppUsage=new Chart(document.getElementById('cAppUsage'),{type:'bar',
+  data:{labels:APP_MONTHS,datasets:[{data:[],backgroundColor:BAR_VIOLET,borderRadius:8,borderSkipped:false,
+    maxBarThickness:48,categoryPercentage:.62,barPercentage:.8}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{tooltip:{...tooltip,callbacks:{title:i=>i[0].label,label:i=>' '+i.parsed.y.toLocaleString('ru-RU')+' активных сессий'}}},
+    scales:{x:{...axX,ticks:{...axX.ticks,maxRotation:0,autoSkip:false}},
+      y:{...axY(v=>v),suggestedMax:10,ticks:{...axY(v=>v).ticks,stepSize:2}}}}});
+
+/* ============ ИНИЦИАЛИЗАЦИЯ НОВЫХ ВИДЖЕТОВ ============ */
+// тепловая карта: построение каркаса, цвет, подсказки (значения считает updaters.heat)
+const heatEl=document.getElementById('heat');
+const DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const FULL={'Пн':'Понедельник','Вт':'Вторник','Ср':'Среда','Чт':'Четверг','Пт':'Пятница','Сб':'Суббота','Вс':'Воскресенье'};
+const HOURS=Array.from({length:24},(_,i)=>i); // 00..23 — все сутки
+const dayW=[0.85,1.0,0.92,0.9,0.8,0.55,0.45];
+const hourW=h=>Math.exp(-((h-19)**2)/12)+0.45*Math.exp(-((h-10)**2)/9);
+let heatMax=0;DAYS.forEach((d,di)=>HOURS.forEach(h=>{const r=dayW[di]*hourW(h);if(r>heatMax)heatMax=r;}));
+const PEAK0=1250;
+const HEATSTOPS=[[0,[238,241,251]],[0.30,[183,196,255]],[0.55,[123,140,255]],[0.75,[91,107,255]],[0.90,[139,92,246]],[1,[233,79,208]]];
+function heatColor(t){t=Math.max(0,Math.min(1,t));
+  for(let i=1;i<HEATSTOPS.length;i++){if(t<=HEATSTOPS[i][0]){
+    const[t0,c0]=HEATSTOPS[i-1],[t1,c1]=HEATSTOPS[i],f=(t-t0)/(t1-t0);
+    const c=c0.map((v,k)=>Math.round(v+(c1[k]-v)*f));return`rgb(${c[0]},${c[1]},${c[2]})`;}}
+  return'rgb(233,79,208)';}
+const heatBody=document.createElement('div');heatEl.appendChild(heatBody);
+const heatPk=document.createElement('div');heatPk.className='heat-peak';heatPk.style.visibility='hidden';heatEl.appendChild(heatPk);
+const heatLg=document.createElement('div');heatLg.className='heat-legend';
+heatLg.innerHTML='<span>Меньше активности</span><i></i><span>Больше</span>';heatEl.appendChild(heatLg);
+const heatTip=document.createElement('div');heatTip.className='heat-tip';document.body.appendChild(heatTip);
+heatEl.addEventListener('mouseover',e=>{const c=e.target.closest('.heat-cell');if(!c)return;
+  heatTip.textContent=`${FULL[c.dataset.d]}, ${String(c.dataset.h).padStart(2,'0')}:00 — ${(+c.dataset.v).toLocaleString('ru-RU')} активных`;
+  heatTip.style.opacity='1';});
+heatEl.addEventListener('mousemove',e=>{heatTip.style.left=e.clientX+'px';heatTip.style.top=e.clientY+'px';});
+heatEl.addEventListener('mouseleave',()=>heatTip.style.opacity='0');
+function placePeak(){const c=heatBody.querySelector('[data-d="Вт"][data-h="19"]');if(!c)return;
+  const hr=heatEl.getBoundingClientRect(),cr=c.getBoundingClientRect();
+  if(!cr.width)return;
+  heatPk.style.left=(cr.left-hr.left+cr.width/2)+'px';heatPk.style.top=(cr.top-hr.top)+'px';
+  heatPk.style.visibility='visible';}
+window.addEventListener('resize',placePeak);
+const AI_BASE=DATA.reduce((s,r)=>s+r.ai,0)/DATA.length;
+const periodFactor=(a,b)=>{const r=range(a,b);return r.length?(r.reduce((s,x)=>s+x.ai,0)/r.length)/AI_BASE:1;};
+
+// данные воронки и прогресса
+const FUNBASE=[
+  {name:'С 1-й попытки',pct:55,color:'#12c99b',bg:'#e3f8f1'},
+  {name:'Со 2-й попытки',pct:25,color:'#3b5bff',bg:'#e7ebff'},
+  {name:'С 3-й попытки',pct:12,color:'#8b5cf6',bg:'#efeaff'},
+  {name:'С 4-й попытки',pct:5,color:'#f5a623',bg:'#fdf0db'},
+  {name:'5 и более попыток',pct:3,color:'#ff3b3b',bg:'#ffe9e9'},
+];
+const FUN_TOTAL=12000; // задач за 180 дней
+const PROGCOLORS=[['#3b5bff','#8aa0ff'],['#8b5cf6','#b69cf9'],['#12c99b','#7be3c8'],
+  ['#18d8e8','#7eecf5'],['#f5a623','#ffcf7a'],['#e94fd0','#f59be4'],['#3b5bff','#8aa0ff']];
+
+/* переиспользуемый каскад умных фильтров (Регион→Район→Школа→Класс→Группа + Предмет) */
+function wireCascade(bar,run){
+  const q=f=>bar.querySelector('select[data-f='+f+']');
+  const region=q('region'),dist=q('dist'),school=q('school'),grade=q('grade'),group=q('group'),subj=q('subj');
+  const all=[region,dist,school,grade,group,subj].filter(Boolean);
+  const syncPh=s=>{s.classList.toggle('placeholder',!s.value);const w=s.closest('.select-wrap');if(w)w.classList.toggle('filled',!s.disabled&&!!s.value);};
+  const fill=(s,items,ph)=>{if(!s)return;s.innerHTML='<option value="">'+ph+'</option>'+items.map(o=>'<option>'+o+'</option>').join('');};
+  const enable=(s,on)=>{if(!s)return;s.disabled=!on;if(!on)s.value='';};
+  all.forEach(s=>{const w=s.closest('.select-wrap');if(w&&!w.querySelector('.clear')){const clr=document.createElement('button');clr.type='button';clr.className='clear';clr.tabIndex=-1;clr.title='Очистить';clr.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 6l12 12M18 6L6 18"/></svg>';w.appendChild(clr);clr.addEventListener('click',e=>{e.stopPropagation();if(s.disabled)return;s.value='';s.dispatchEvent(new Event('change'));});}});
+  all.forEach(syncPh);
+  if(region) region.addEventListener('change',()=>{
+    fill(dist,REGIONS[region.value]||[],'Все районы');enable(dist,!!region.value);
+    fill(school,[],'Все школы');enable(school,false);fill(grade,[],'Все классы');enable(grade,false);
+    fill(group,[],'Все группы');enable(group,false);all.forEach(syncPh);run();});
+  if(dist) dist.addEventListener('change',()=>{
+    fill(school,dist.value?schoolsOf(region.value,dist.value):[],'Все школы');enable(school,!!dist.value);
+    fill(grade,[],'Все классы');enable(grade,false);fill(group,[],'Все группы');enable(group,false);
+    all.forEach(syncPh);run();});
+  if(school) school.addEventListener('change',()=>{
+    fill(grade,school.value?CLASSES:[],'Все классы');enable(grade,!!school.value);
+    fill(group,[],'Все группы');enable(group,false);all.forEach(syncPh);run();});
+  if(grade) grade.addEventListener('change',()=>{
+    fill(group,grade.value?GROUPS:[],'Все группы');enable(group,!!grade.value);all.forEach(syncPh);run();});
+  if(group) group.addEventListener('change',()=>{syncPh(group);run();});
+  if(subj) subj.addEventListener('change',()=>{syncPh(subj);run();});
+}
+
+/* стандартная разметка каскадного фильтра (для новых виджетов) */
+const CHEV='<span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>';
+const FILTERBAR_HTML=`
+  <div class="filter-field"><label>Регион</label><div class="select-wrap">
+    <select data-f="region"><option value="">Все регионы</option><option>Ташкент</option><option>Самарканд</option><option>Бухара</option><option>Андижан</option><option>Наманган</option></select>${CHEV}</div></div>
+  <div class="filter-field"><label>Район</label><div class="select-wrap">
+    <select data-f="dist" disabled><option value="">Все районы</option></select>${CHEV}</div></div>
+  <div class="filter-field"><label>Школа</label><div class="select-wrap">
+    <select data-f="school" disabled><option value="">Все школы</option></select>${CHEV}</div></div>
+  <div class="filter-field"><label>Класс</label><div class="select-wrap">
+    <select data-f="grade" disabled><option value="">Все классы</option></select>${CHEV}</div></div>
+  <div class="filter-field"><label>Группа</label><div class="select-wrap">
+    <select data-f="group" disabled><option value="">Все группы</option></select>${CHEV}</div></div>
+  <div class="filter-field"><label>Предмет</label><div class="select-wrap">
+    <select data-f="subj"><option value="">Все предметы</option><option>Математика</option><option>Физика</option><option>Английский</option><option>Химия</option><option>Биология</option><option>История</option></select>${CHEV}</div></div>`;
+
+/* короткий каскад (только регион + район) — для вкладок Финансы/Маркет/Система */
+const FILTERBAR_SHORT=`
+  <div class="filter-field"><label>Регион</label><div class="select-wrap">
+    <select data-f="region"><option value="">Все регионы</option><option>Ташкент</option><option>Самарканд</option><option>Бухара</option><option>Андижан</option><option>Наманган</option></select>${CHEV}</div></div>
+  <div class="filter-field"><label>Район</label><div class="select-wrap">
+    <select data-f="dist" disabled><option value="">Все районы</option></select>${CHEV}</div></div>`;
+
+/* поля периода «От / До» для общего фильтра вкладки */
+const DATEFIELDS=`
+  <div class="filter-field tf-date"><label>От</label><input type="date" data-role="from"></div>
+  <div class="filter-field tf-date"><label>До</label><input type="date" data-role="to"></div>`;
+
+/* активный фильтр (общий фильтр текущей вкладки) — из него читают все updaters */
+let CURRENT_FILTER=null;
+
+/* чтение текущего среза каскадного фильтра (та же логика, что в «Активность и награды») */
+function readScope(bar){
+  const g=f=>{const el=bar&&bar.querySelector('select[data-f='+f+']');return el?el.value:'';};
+  const region=g('region'),dist=g('dist'),school=g('school'),grade=g('grade'),group=g('group'),subj=g('subj');
+  let parts;
+  if(group) parts='группа '+group.replace('Группа ','')+' · '+grade+' · '+school;
+  else if(grade) parts=grade+' · '+school;
+  else if(school) parts=school+' · '+dist;
+  else if(dist) parts=dist+' · '+region;
+  else if(region) parts=region;
+  else parts='по всем регионам';
+  const salt=(subj?subj+'>':'')+[region,dist,school,grade,group].filter(Boolean).join('>');
+  return {region,dist,school,grade,group,subj,salt,
+    level:(subj?subj+' · ':'')+parts,gradeNum:parseInt(grade)||0};
+}
+
+/* ============ UPDATERS (фильтр по диапазону) ============ */
+const updaters={
+  activity(a,b){
+    const get=f=>{const el=CURRENT_FILTER&&CURRENT_FILTER.querySelector('select[data-f='+f+']');return el?el.value:'';};
+    const region=get('region'),dist=get('dist'),school=get('school'),grade=get('grade'),group=get('group'),subj=get('subj');
+    const days=Math.round((b-a)/DAY)+1;
+    let children,ancestors,level;
+    if(group){children=[group];ancestors=[region,dist,school,grade];level='группа '+group.replace('Группа ','');}
+    else if(grade){children=GROUPS;ancestors=[region,dist,school,grade];level='группы · '+grade+' · '+school;}
+    else if(school){children=CLASSES;ancestors=[region,dist,school];level='классы · '+school;}
+    else if(dist){children=schoolsOf(region,dist);ancestors=[region,dist];level='школы · '+dist;}
+    else if(region){children=REGIONS[region];ancestors=[region];level='районы · '+region;}
+    else{children=Object.keys(REGIONS);ancestors=[];level='по всем регионам';}
+    const anc=ancestors.filter(Boolean);
+    const base=(subj?subj+'>':'')+(anc.length?anc.join('>')+'>':'');
+    const rowsT=children.map(ch=>{const id=base+ch;
+      return {ch,xp:metricVal(id,days,'xp',120,480),coin:metricVal(id,days,'coin',18,90)};});
+    rowsT.sort((x,y)=>y.xp-x.xp);
+    chActivity.data.labels=rowsT.map(r=>r.ch);
+    chActivity.data.datasets[0].data=rowsT.map(r=>r.xp);
+    chActivity.data.datasets[1].data=rowsT.map(r=>r.coin);
+    chActivity.update();
+    document.getElementById('actSub').textContent='Очки опыта и Bekcoin · '+level;
+  },
+  streak(a,b){
+    const cur=range(a,b);
+    const days=Math.round((b-a)/DAY)+1;
+    const sc=readScope(CURRENT_FILTER);
+    const f=(sc.region?0.42:1)*(sc.dist?0.55:1)*(sc.school?0.5:1)*(sc.grade?0.5:1);
+    const tot=STREAK.map((_,bi)=>cur.reduce((s,r)=>s+r.streak[bi],0)); // ученики по каждой длине серии
+    const sumR=(lo,hi)=>tot.slice(lo,hi).reduce((s,v)=>s+v,0);
+    const defs=[['1–2 дня',0,2,'#ff5a5f','#ffe9e9'],['3–6 дней',2,6,'#f5a623','#fdf0db'],
+      ['7–13 дней',6,13,C.blue,'#e7ebff'],['14+ дней',13,30,C.teal,'#e3f8f1']];
+    const buckets=defs.map(([l,lo,hi,c,bg],i)=>({l,c,bg,
+      v:Math.max(0,Math.round(sumR(lo,hi)*f*jitter('strk'+i+'|'+sc.salt,days,0.15)))}));
+    const total=buckets.reduce((s,x)=>s+x.v,0)||1;
+    chStreak.data.labels=buckets.map(x=>x.l);
+    chStreak.data.datasets[0].data=buckets.map(x=>x.v);
+    chStreak.data.datasets[0].backgroundColor=buckets.map(x=>x.c);
+    chStreak.update();
+    document.getElementById('streakTotal').textContent=total.toLocaleString('ru-RU');
+    document.getElementById('streakLegend').innerHTML=buckets.map(x=>`
+      <div class="legend-row"><span class="bar" style="background:${x.c}"></span>
+        <span class="lbl">${x.l}</span><span class="val">${x.v.toLocaleString('ru-RU')}</span>
+        <span class="pct" style="background:${x.bg};color:${x.c}">${Math.round(x.v/total*100)}%</span></div>`).join('');
+    document.getElementById('streakSub').textContent='Доля учеников по длине серии без пропусков · '+sc.level;
+    EXPORTS.streak={file:'privychka-uchitsya.csv',head:['Длина серии','Учеников','Доля %'],
+      rows:buckets.map(x=>[x.l,x.v,Math.round(x.v/total*100)])};
+  },
+  orders(a,b){
+    const rows=range(a,b);
+    const p=sum(rows,'processing'),i=sum(rows,'issued'),c=sum(rows,'cancelled');
+    const tot=p+i+c||1;
+    chOrders.data.datasets[0].data=[p,i,c];chOrders.update();
+    document.getElementById('ordTotal').textContent=(p+i+c).toLocaleString('ru-RU');
+    const rowsDef=[
+      ['В обработке',p,C.violet,'#efeaff'],
+      ['Выдано',i,C.teal,'#e3f8f1'],
+      ['Отменено',c,C.red,'#ffe9e9']];
+    document.getElementById('ordLegend').innerHTML=rowsDef.map(([lbl,v,col,bg])=>`
+      <div class="legend-row"><span class="bar" style="background:${col}"></span>
+        <span class="lbl">${lbl}</span><span class="val">${v.toLocaleString('ru-RU')}</span>
+        <span class="pct" style="background:${bg};color:${col}">${Math.round(v/tot*100)}%</span></div>`).join('');
+  },
+  products(a,b){
+    const rows=range(a,b);
+    const t=PRODUCTS.map((p,i)=>({...p,cnt:rows.reduce((s,r)=>s+r.products[i],0)}));
+    t.sort((x,y)=>y.cnt-x.cnt);
+    const max=Math.max(1,...t.map(p=>p.cnt));
+    document.getElementById('prodList').innerHTML=t.map(p=>`
+      <div class="prod"><div class="ico">${p.ico}</div>
+        <div class="body"><div class="top"><span class="name">${p.name}</span>
+          <span class="cnt">${p.cnt.toLocaleString('ru-RU')}</span></div>
+          <div class="track"><div class="fill" style="width:${(p.cnt/max*100).toFixed(0)}%;
+            background:linear-gradient(90deg,${p.color},${p.color}bb)"></div></div></div></div>`).join('');
+  },
+  economy(a,b){
+    const g=groupRows(range(a,b));
+    chEconomy.data.labels=g.map(x=>x.label);
+    chEconomy.data.datasets[0].data=g.map(x=>sum(x.rows,'earned'));
+    chEconomy.data.datasets[1].data=g.map(x=>sum(x.rows,'spent'));
+    chEconomy.update();
+  },
+  ai(a,b){
+    const g=groupRows(range(a,b));
+    const reqs=g.map(x=>sum(x.rows,'ai'));
+    // токены ≈ обращения × средняя длина диалога (≈900–1450 ток./обращение, детерминированно)
+    const toks=g.map((x,i)=>Math.round(reqs[i]*(900+mulberry32(hash('tok|'+x.label))()*550)));
+    chAI.data.labels=g.map(x=>x.label);
+    chAI.data.datasets[0].data=reqs;
+    chAI.data.datasets[1].data=toks;
+    chAI.update();
+    EXPORTS.ai={file:'nagruzka-ii.csv',head:['Период','Обращений','Токенов'],
+      rows:g.map((x,i)=>[x.label,reqs[i],toks[i]])};
+  },
+  heat(a,b){
+    const peakVal=Math.round(PEAK0*periodFactor(a,b));
+    let html='<div class="heat-grid">';
+    DAYS.forEach((d,di)=>{html+=`<div class="heat-day">${d}</div>`;
+      HOURS.forEach(h=>{const norm=dayW[di]*hourW(h)/heatMax,val=Math.round(norm*peakVal);
+        html+=`<div class="heat-cell" style="background:${heatColor(norm)}" data-d="${d}" data-h="${h}" data-v="${val}"></div>`;});});
+    html+='</div><div class="heat-hours"><span></span>';
+    HOURS.forEach(h=>html+=`<span>${String(h).padStart(2,'0')}</span>`);
+    html+='</div>';
+    heatBody.innerHTML=html;
+    heatPk.textContent=`Вторник, 19:00 — ${peakVal.toLocaleString('ru-RU')} активных учеников`;
+    requestAnimationFrame(placePeak);
+  },
+  funnel(a,b){
+    const days=Math.round((b-a)/DAY)+1;
+    const total=Math.round(FUN_TOTAL*days/180);
+    chFunnel.data.labels=FUNBASE.map(s=>s.name);
+    chFunnel.data.datasets[0].data=FUNBASE.map(s=>s.pct);
+    chFunnel.data.datasets[0].backgroundColor=FUNBASE.map(s=>s.color);
+    chFunnel.update();
+    document.getElementById('funTotal').textContent=total.toLocaleString('ru-RU');
+    document.getElementById('funLegend').innerHTML=FUNBASE.map(s=>{
+      const cnt=Math.round(total*s.pct/100);
+      return `<div class="legend-row"><span class="bar" style="background:${s.color}"></span>
+        <span class="lbl">${s.name}</span><span class="val">${s.pct}%</span>
+        <span class="pct" style="background:${s.bg};color:${s.color}">${cnt.toLocaleString('ru-RU')}</span></div>`;}).join('');
+  },
+  prog(a,b){
+    const bar=CURRENT_FILTER;
+    const g=f=>{const el=bar&&bar.querySelector('select[data-f='+f+']');return el?el.value:'';};
+    const region=g('region'),dist=g('dist'),school=g('school'),grade=g('grade'),group=g('group'),subj=g('subj');
+    const days=Math.round((b-a)/DAY)+1;
+    let children,ancestors,level;
+    if(group){children=[group];ancestors=[region,dist,school,grade];level='группа '+group.replace('Группа ','');}
+    else if(grade){children=GROUPS;ancestors=[region,dist,school,grade];level='группы · '+grade;}
+    else if(school){children=CLASSES;ancestors=[region,dist,school];level='классы · '+school;}
+    else if(dist){children=schoolsOf(region,dist);ancestors=[region,dist];level='школы · '+dist;}
+    else if(region){children=REGIONS[region];ancestors=[region];level='районы · '+region;}
+    else{children=Object.keys(REGIONS);ancestors=[];level='по всем регионам';}
+    const anc=ancestors.filter(Boolean);
+    const base=(subj?subj+'>':'')+(anc.length?anc.join('>')+'>':'');
+    document.getElementById('prog').innerHTML=children.map((ch,i)=>{
+      const num=parseInt(ch),total=Number.isFinite(num)?100+(num-5)*12:120;
+      const r=mulberry32(hash(base+ch));
+      const done=Math.min(total,Math.round(total*(0.30+r()*0.45)*days/180));
+      const pct=Math.round(done/total*100),col=PROGCOLORS[i%PROGCOLORS.length];
+      return `<div class="prog">
+        <div class="prog-top"><span class="cls">${ch}</span>
+          <span class="info">Пройдено <b>${done}</b> из <b>${total}</b> уроков
+            <span class="prog-pct" style="color:${col[0]}">(${pct}%)</span></span></div>
+        <div class="prog-track" data-tip="Осталось ${total-done} уроков">
+          <div class="prog-fill" style="width:${pct}%;background:linear-gradient(90deg,${col[0]},${col[1]})"></div></div>
+      </div>`;}).join('');
+    document.getElementById('progSub').textContent='Пройдено уроков · '+level;
+  },
+  leaderboard(a,b){
+    const days=Math.round((b-a)/DAY)+1;
+    const k=days/180;
+    LB_ROWS=STUDENTS.map(s=>{
+      const xp=Math.max(0,Math.round(s.baseXp*k));
+      return {...s,xp,coin:Math.round(xp*0.14)};
+    }).sort((x,y)=>y.xp-x.xp).map((s,i)=>({...s,rank:i+1}));
+    const sumXp=LB_ROWS.reduce((t,s)=>t+s.xp,0);
+    const avg=LB_ROWS.length?Math.round(sumXp/LB_ROWS.length):0;
+    document.getElementById('lbTotal').textContent=LB_ROWS.length.toLocaleString('ru-RU');
+    document.getElementById('lbAvg').textContent=avg.toLocaleString('ru-RU');
+    document.getElementById('lbSum').textContent=sumXp.toLocaleString('ru-RU');
+    const medals=['linear-gradient(135deg,#ffce54,#f5a623)','linear-gradient(135deg,#c5cdde,#9aa6bd)','linear-gradient(135deg,#e0a274,#c8804a)'];
+    document.getElementById('lbTop').innerHTML=LB_ROWS.slice(0,3).map((s,i)=>`
+      <div class="lb-chip"><span class="rank" style="background:${medals[i]}">${i+1}</span>
+        <div class="info"><div class="nm">${s.name}</div>
+          <div class="meta">${s.school} · ${s.grade} кл. «${s.group}»</div></div>
+        <span class="xp">${s.xp.toLocaleString('ru-RU')} XP</span></div>`).join('');
+    document.getElementById('lbModalSub').textContent='Всего: '+LB_ROWS.length.toLocaleString('ru-RU')+' · период '+days+' дн.';
+    if(document.getElementById('lbModal').classList.contains('open')) renderLbTable();
+  },
+  help(a,b){
+    const days=Math.round((b-a)/DAY)+1;
+    const sc=readScope(CURRENT_FILTER);
+    const r=mulberry32(hash('help|'+sc.salt));
+    const rows=[];
+    for(let i=0;i<7;i++){
+      const name=LB_FIRST[Math.floor(r()*LB_FIRST.length)]+' '+LB_LAST[Math.floor(r()*LB_LAST.length)];
+      const grade=sc.gradeNum||(5+Math.floor(r()*7));
+      const subj=sc.subj||SUBJECTS[Math.floor(r()*SUBJECTS.length)];
+      const base=2.4+r()*3.6;
+      rows.push({name,grade,subj,att:Math.max(1,+(base*jitter(name+sc.salt,days,0.12)).toFixed(1))});
+    }
+    rows.sort((x,y)=>y.att-x.att);
+    const max=Math.max(...rows.map(r=>r.att));
+    document.getElementById('helpList').innerHTML=rows.map((s,i)=>{
+      const hot=i<2; // двое с наибольшими трудностями — акцент
+      const col=hot?(i===0?C.red:'#f5a623'):AV_COLORS[(i+2)%AV_COLORS.length];
+      const fill=hot?`linear-gradient(90deg,${col},${i===0?'#ff7a7a':'#ffc46b'})`:`linear-gradient(90deg,${col},${col}bb)`;
+      return `<div class="hbar">
+        <div class="av" style="background:linear-gradient(135deg,${col},${col}bb)">${initials(s.name)}</div>
+        <div class="body">
+          <div class="top"><span class="nm">${s.name} <small>· ${s.grade} кл. · ${s.subj}</small>${hot?'<span class="hbar-tag">нужна помощь</span>':''}</span>
+            <span class="val">${s.att.toFixed(1)} <small>попыток</small></span></div>
+          <div class="track" data-tip="${s.name}: ${s.att.toFixed(1)} попыток на задание">
+            <div class="fill" style="width:${(s.att/max*100).toFixed(0)}%;background:${fill}"></div></div>
+        </div></div>`;}).join('');
+    document.getElementById('helpSub').textContent='Среднее число попыток · '+sc.level;
+    EXPORTS.help={file:'ucheniki-trudnosti.csv',head:['Ученик','Класс','Предмет','Среднее число попыток'],
+      rows:rows.map(s=>[s.name,s.grade,s.subj,s.att.toFixed(1)])};
+  },
+  topics(a,b){
+    const days=Math.round((b-a)/DAY)+1;
+    const sc=readScope(CURRENT_FILTER);
+    const list=(sc.subj&&TOPICS_BY_SUBJ[sc.subj])||TOPICS_DEFAULT;
+    const rows=list.map(t=>{const rb=mulberry32(hash('topic|'+sc.salt+'|'+t));
+      return {t,att:+((2.2+rb()*2.6)*jitter(t+sc.salt,days,0.1)).toFixed(1)};}).sort((x,y)=>y.att-x.att);
+    chTopics.data.labels=rows.map(r=>r.t);
+    chTopics.data.datasets[0].data=rows.map(r=>r.att);
+    chTopics.data.datasets[0].backgroundColor=rows.map(r=>{
+      const a2=chTopics.chartArea,top=r.att>=4;
+      const c1=top?C.red:C.blue,c2=top?'#ff8585':'#8aa0ff';
+      return a2?vGrad(chTopics.ctx,a2,c1,c2):c1;});
+    chTopics.update();
+    document.getElementById('topicsSub').textContent='Среднее число попыток на тему · '+sc.level;
+    EXPORTS.topics={file:'slozhnye-temy.csv',head:['Тема','Среднее число попыток'],
+      rows:rows.map(r=>[r.t,r.att.toFixed(1)])};
+  },
+  subjreq(a,b){
+    const days=Math.round((b-a)/DAY)+1;
+    const sc=readScope(CURRENT_FILTER);
+    const byTopic=!!sc.subj;
+    let rows;
+    if(byTopic){ // выбран предмет → детализация по темам
+      const list=TOPICS_BY_SUBJ[sc.subj]||TOPICS_DEFAULT;
+      rows=list.map((t,i)=>{const rb=mulberry32(hash('sr|'+sc.salt+'|'+t)),[c,bg]=DONUT_PAL[i%DONUT_PAL.length];
+        return {name:t,color:c,bg,cnt:Math.round((260+rb()*1500)*days/30)};}).sort((x,y)=>y.cnt-x.cnt);
+    } else {
+      rows=AISUBJ.map(s=>({...s,cnt:Math.round(s.base*days/30*jitter(s.name+sc.salt,days,0.1))})).sort((x,y)=>y.cnt-x.cnt);
+    }
+    const total=rows.reduce((t,s)=>t+s.cnt,0)||1;
+    chAISubj.data.labels=rows.map(s=>s.name);
+    chAISubj.data.datasets[0].data=rows.map(s=>s.cnt);
+    chAISubj.data.datasets[0].backgroundColor=rows.map(s=>s.color);
+    chAISubj.update();
+    document.getElementById('aiSubjTotal').textContent=total.toLocaleString('ru-RU');
+    document.getElementById('aiSubjLegend').innerHTML=rows.map(s=>`
+      <div class="legend-row"><span class="bar" style="background:${s.color}"></span>
+        <span class="lbl">${s.name}</span><span class="val">${s.cnt.toLocaleString('ru-RU')}</span>
+        <span class="pct" style="background:${s.bg};color:${s.color}">${Math.round(s.cnt/total*100)}%</span></div>`).join('');
+    document.getElementById('subjreqSub').textContent=(byTopic?'Запросы к ИИ по темам':'Запросы к ИИ по предметам')+' · '+sc.level;
+    EXPORTS.subjreq={file:'zaprosy-ii.csv',head:[byTopic?'Тема':'Предмет','Запросов','Доля %'],
+      rows:rows.map(s=>[s.name,s.cnt,Math.round(s.cnt/total*100)])};
+  },
+  payments(a,b){
+    const days=Math.round((b-a)/DAY)+1;
+    const sc=readScope(CURRENT_FILTER);
+    const rows=PAY_METHODS.map(m=>({...m,
+      sum:Math.round(m.base*days/30*jitter(m.name+sc.salt,days,0.12)/1000)*1000}))
+      .sort((x,y)=>y.sum-x.sum);
+    const total=rows.reduce((t,m)=>t+m.sum,0)||1;
+    chPay.data.labels=rows.map(m=>m.name);
+    chPay.data.datasets[0].data=rows.map(m=>m.sum);
+    chPay.data.datasets[0].backgroundColor=rows.map(m=>m.color);
+    chPay.update();
+    document.getElementById('payTotal').textContent=(total/1e6).toFixed(1).replace('.',',')+' млн';
+    document.getElementById('payLegend').innerHTML=rows.map(m=>`
+      <div class="legend-row"><span class="bar" style="background:${m.color}"></span>
+        <span class="lbl">${m.name}</span><span class="val">${m.sum.toLocaleString('ru-RU')}</span>
+        <span class="pct" style="background:${m.bg};color:${m.color}">${Math.round(m.sum/total*100)}%</span></div>`).join('');
+    const paySub=document.getElementById('paySub');if(paySub)paySub.textContent='Сумма пополнений по платёжным системам · '+sc.level;
+    EXPORTS.payments={file:'prodazhi-oplata.csv',head:['Способ оплаты','Сумма, сум','Доля %'],
+      rows:rows.map(m=>[m.name,m.sum,Math.round(m.sum/total*100)])};
+  },
+  paymonth(a,b){
+    const days=Math.round((b-a)/DAY)+1;
+    const base=[6.2,7.4,22.6,8.1,11.3,15.7,13.2,9.4,7.1,8.8,6.5,4.2]; // млн UZS по месяцам
+    const data=base.map((v,i)=>Math.round(v*1e6*jitter('paym|'+i,days,0.05)));
+    chPayMonth.data.datasets[0].data=data;chPayMonth.update();
+    EXPORTS.paymonth={file:'platezhi-po-mesyacam.csv',head:['Месяц','Сумма, UZS'],
+      rows:MONTHS_RU.map((m,i)=>[m,data[i]])};
+  },
+  paystatus(a,b){
+    const sc=readScope(CURRENT_FILTER);
+    const days=Math.round((b-a)/DAY)+1;
+    const f=(sc.region?0.55:1)*(sc.dist?0.6:1)*(sc.school?0.5:1);
+    const act=Math.round(4*f*jitter('ps0|'+sc.salt,days,0.2));
+    const inact=Math.round(45*f*jitter('ps1|'+sc.salt,days,0.12));
+    const rows=[['Активные подписки',act,C.teal,'#e3f8f1'],['Неактивные',inact,'#f5a623','#fdf0db'],['Истёкшие',0,C.red,'#ffe9e9']];
+    const tot=rows.reduce((s,r)=>s+r[1],0)||1;
+    chPayStatus.data.datasets[0].data=rows.map(r=>r[1]);
+    chPayStatus.data.datasets[0].backgroundColor=rows.map(r=>r[2]);chPayStatus.update();
+    document.getElementById('payStatusTotal').textContent=tot;
+    document.getElementById('payStatusLegend').innerHTML=rows.map(([l,v,c,bg])=>`
+      <div class="legend-row"><span class="bar" style="background:${c}"></span>
+        <span class="lbl">${l}</span><span class="val">${v}</span>
+        <span class="pct" style="background:${bg};color:${c}">${Math.round(v/tot*100)}%</span></div>`).join('');
+    EXPORTS.paystatus={file:'status-platezhey.csv',head:['Статус','Кол-во','Доля %'],
+      rows:rows.map(([l,v])=>[l,v,Math.round(v/tot*100)])};
+  },
+  appusage(a,b){
+    const days=Math.round((b-a)/DAY)+1;
+    const sc=readScope(CURRENT_FILTER);
+    const data=APP_MONTHS.map((_,i)=>{
+      if(i>=10) return 0;                       // Ноя/Дек — данных ещё нет
+      if(i===5) return +(8.4*jitter('appJun|'+sc.salt,days,0.05)).toFixed(1); // пик Jun
+      return +((0.5+i*0.1)*jitter('app|'+i+'|'+sc.salt,days,0.08)).toFixed(1);
+    });
+    chAppUsage.data.datasets[0].data=data;chAppUsage.update();
+    document.getElementById('appusageSub').textContent='Активные сессии по месяцам · '+sc.level;
+    EXPORTS.appusage={file:'ispolzovanie-prilozheniya.csv',head:['Месяц','Активных сессий'],
+      rows:APP_MONTHS.map((m,i)=>[m,data[i]])};
+  },
+  schoolrank(a,b){
+    const days=Math.round((b-a)/DAY)+1;
+    const period=days<=10?'неделю':days<=40?'месяц':days<=100?'квартал':'выбранный период';
+    const factor=days/30;
+    const sc=readScope(CURRENT_FILTER);
+    let names;
+    if(sc.dist) names=schoolsOf(sc.region,sc.dist).slice(0,5);
+    else if(sc.region){const pool=[];REGIONS[sc.region].forEach(d=>schoolsOf(sc.region,d).forEach(s=>pool.push(s)));
+      names=pool.map(s=>({s,k:mulberry32(hash('reg|'+sc.region+'|'+s))()})).sort((x,y)=>x.k-y.k).slice(0,5).map(o=>o.s);}
+    else names=SCHOOL_RANK.map(s=>s.name);
+    if(sc.school&&!names.includes(sc.school)) names=[sc.school,...names].slice(0,5);
+    const rows=names.map(nm=>{const rb=mulberry32(hash('school|'+sc.salt+'|'+nm));
+      return {name:nm,sel:nm===sc.school,pts:Math.round((300+rb()*240)*factor*jitter(nm+sc.salt,days,0.06))};})
+      .sort((x,y)=>y.pts-x.pts);
+    const max=Math.max(...rows.map(r=>r.pts));
+    const cols=[['#f5a623','#ffce6b'],[C.blue,'#8aa0ff'],[C.violet,'#b69cf9'],[C.teal,'#7be3c8'],[C.cyan,'#7eecf5']];
+    document.getElementById('schoolList').innerHTML=rows.map((s,i)=>{
+      const c=cols[i%cols.length];
+      const rkStyle=i===0?'background:linear-gradient(135deg,#ffce54,#f5a623);color:#fff':'';
+      return `<div class="sl">
+        <span class="rk" style="${rkStyle}">${i+1}</span>
+        <div class="body">
+          <div class="top"><span class="nm">${s.sel?'<b>'+s.name+'</b>':s.name}</span>
+            <span class="pts">${s.pts.toLocaleString('ru-RU')} <small>баллов</small></span></div>
+          <div class="track" data-tip="${s.name}: ${s.pts.toLocaleString('ru-RU')} баллов на ученика">
+            <div class="fill" style="width:${(s.pts/max*100).toFixed(0)}%;background:linear-gradient(90deg,${c[0]},${c[1]})"></div></div>
+        </div></div>`;}).join('');
+    document.getElementById('schoolSub').textContent='Билим-баллы на ученика · за '+period+' · '+(sc.dist||sc.region||'по всем регионам');
+    EXPORTS.schoolrank={file:'reyting-shkol.csv',head:['Место','Школа','Билим-баллы на ученика'],
+      rows:rows.map((s,i)=>[i+1,s.name,s.pts])};
+  },
+  studmonth(a,b){ // эталонный график (реагирует на общий фильтр)
+    const sc=readScope(CURRENT_FILTER);const days=Math.round((b-a)/DAY)+1;
+    const f=(sc.region?0.42:1)*(sc.dist?0.55:1)*(sc.school?0.5:1)*(sc.grade?0.45:1);
+    const jf=jitter('stud|'+sc.salt,days,0.08);
+    const girls=[0,0,1,44,30,7,1,0,0,0,0,0],boys=[0,0,1,33,22,6,1,0,0,0,0,0];
+    chStudentsMonth.data.datasets[0].data=girls.map(v=>Math.round(v*f*jf));
+    chStudentsMonth.data.datasets[1].data=boys.map(v=>Math.round(v*f*jf));
+    chStudentsMonth.update();
+  },
+  subsales(a,b){ // эталонный график (реагирует на общий фильтр)
+    const sc=readScope(CURRENT_FILTER);const days=Math.round((b-a)/DAY)+1;
+    const f=(sc.region?0.5:1)*(sc.dist?0.6:1)*(sc.school?0.55:1);
+    const prem=Math.max(1,Math.round(53*f*jitter('ss|'+sc.salt,days,0.12)));
+    const rows=[['Старт',0,C.blue,'#e7ebff'],['Оптимал',0,C.cyan,'#e3fafd'],['Премиум',prem,C.violet,'#efeaff']];
+    const tot=rows.reduce((s,r)=>s+r[1],0)||1;
+    chSubSales.data.datasets[0].data=rows.map(r=>r[1]);chSubSales.update();
+    document.getElementById('subSalesTotal').textContent=tot;
+    document.getElementById('subSalesLegend').innerHTML=rows.map(([l,v,c,bg])=>`
+      <div class="legend-row"><span class="bar" style="background:${c}"></span>
+        <span class="lbl">${l}</span><span class="val">${v} <small style="font-weight:600;color:var(--muted)">шт</small></span>
+        <span class="pct" style="background:${bg};color:${c}">${Math.round(v/tot*100)}%</span></div>`).join('');
+    EXPORTS.subsales={file:'prodazhi-podpiski.csv',head:['Тариф','Продаж','Доля %'],
+      rows:rows.map(([l,v])=>[l,v,Math.round(v/tot*100)])};
+  }
+};
+
+/* ============ WIRE FILTERS ============ */
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const parse=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const ISO_START=iso(START), ISO_END=iso(END);
+const defFrom=new Date(END);defFrom.setDate(defFrom.getDate()-180); // последние 6 мес.
+const ISO_FROM=iso(defFrom);
+
+// наполняем общие фильтр-бары вкладок: период + каскад (полный для «Образования», короткий — остальным)
+document.querySelectorAll('.tabfilter .filter-bar').forEach(bar=>{
+  bar.innerHTML=DATEFIELDS+(bar.dataset.scope==='full'?FILTERBAR_HTML:FILTERBAR_SHORT);});
+
+/* ============ ВКЛАДКИ + ОБЩИЙ ФИЛЬТР НА ВКЛАДКУ ============ */
+(function(){
+  // распределение графиков по тематикам
+  const DOMAIN_MAP={
+    // Образование: успеваемость, активность, вовлечённость
+    activity:'edu',streak:'edu',funnel:'edu',prog:'edu',
+    leaderboard:'edu',help:'edu',subjreq:'edu',topics:'edu',schoolrank:'edu',
+    // Финансы: внутренняя экономика, Bekcoin, платежи, подписки
+    subsales:'fin',economy:'fin',payments:'fin',paymonth:'fin',paystatus:'fin',
+    // Маркет: магазин, покупки, товары
+    orders:'market',products:'market',
+    // Система: добавление пользователей, нагрузка ИИ, активность, использование
+    studmonth:'system',ai:'system',heat:'system',appusage:'system'
+  };
+  document.querySelectorAll('.main .grid > .card[data-card]').forEach(c=>{c.dataset.domain=DOMAIN_MAP[c.dataset.card]||'edu';});
+
+  const cardsOf=tab=>[
+    ...[...document.querySelectorAll('.main .grid > .card')].filter(c=>c.dataset.domain===tab),
+    ...[...document.querySelectorAll('.main .grid > .card-pair[data-domain="'+tab+'"] .card')]
+  ];
+
+  function renderTab(tab){
+    const tf=tabBars[tab]; if(!tf) return;
+    CURRENT_FILTER=tf.querySelector('.filter-bar');         // общий каскад этой вкладки
+    const from=tf.querySelector('[data-role=from]'),to=tf.querySelector('[data-role=to]');
+    let a=parse(from.value),b=parse(to.value);
+    if(a>b){const t=from.value;from.value=to.value;to.value=t;[a,b]=[b,a];}
+    cardsOf(tab).forEach(card=>{const id=card.dataset.card;if(id&&updaters[id])try{updaters[id](a,b);}catch(e){console.warn('updater',id,e);}});
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      cardsOf(tab).forEach(card=>card.querySelectorAll('canvas').forEach(cv=>{const ch=Chart.getChart(cv);if(ch)ch.resize();}));}));
+  }
+
+  // фильтр-бары вкладок: даты по умолчанию + привязка изменений к рендеру
+  const tabBars={};
+  document.querySelectorAll('.tabfilter').forEach(tf=>{
+    const tab=tf.dataset.tabfilter; tabBars[tab]=tf;
+    const from=tf.querySelector('[data-role=from]'),to=tf.querySelector('[data-role=to]');
+    if(from&&to){from.min=to.min=ISO_START;from.max=to.max=ISO_END;from.value=ISO_FROM;to.value=ISO_END;}
+    const fb=tf.querySelector('.filter-bar'); const run=()=>renderTab(tab);
+    if(fb) wireCascade(fb,run);
+    tf.querySelectorAll('[data-role=from],[data-role=to]').forEach(d=>d.addEventListener('change',run));
+  });
+
+  function show(tab){
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+    document.querySelectorAll('.tabfilter').forEach(tf=>{tf.style.display=(tf.dataset.tabfilter===tab)?'':'none';});
+    document.querySelectorAll('.main .grid > .card').forEach(c=>{c.style.display=(c.dataset.domain===tab)?'':'none';});
+    document.querySelectorAll('.main .grid > .card-pair').forEach(w=>{w.style.display=(w.dataset.domain===tab)?'':'none';});
+    renderTab(tab);
+  }
+  document.getElementById('tabs').addEventListener('click',e=>{
+    const btn=e.target.closest('.tab-btn');if(!btn)return;show(btn.dataset.tab);});
+
+  // первичный рендер всех вкладок (наполнить данными даже скрытые), затем открыть «Образование»
+  ['system','edu','fin','market'].forEach(renderTab);
+  show('system');
+})();
+
+/* ============ КНОПКИ «СКАЧАТЬ ОТЧЁТ» И МЕНЮ «···» ============ */
+(function(){
+  document.querySelectorAll('.card-tools').forEach(tools=>{
+    const card=tools.closest('[data-card]'),key=card.dataset.card;
+    const doExport=()=>{const e=EXPORTS[key];if(e)downloadCSV(e.file,e.head,e.rows);};
+    const dl=tools.querySelector('[data-dl]');if(dl)dl.addEventListener('click',doExport);
+    const menuBtn=tools.querySelector('[data-menu]'),pop=tools.querySelector('.card-menu-pop');
+    if(menuBtn&&pop){
+      menuBtn.addEventListener('click',ev=>{ev.stopPropagation();
+        document.querySelectorAll('.card-menu-pop.open').forEach(p=>{if(p!==pop)p.classList.remove('open');});
+        pop.classList.toggle('open');});
+      pop.querySelectorAll('[data-act]').forEach(btn=>btn.addEventListener('click',()=>{
+        if(btn.dataset.act==='export')doExport();
+        else if(btn.dataset.act==='refresh'){const f=card.querySelector('[data-role=from]');
+          if(f)f.dispatchEvent(new Event('change'));else{const s=card.querySelector('.seg button.active');if(s)s.click();}}
+        pop.classList.remove('open');}));
+    }
+  });
+  document.addEventListener('click',()=>document.querySelectorAll('.card-menu-pop.open').forEach(p=>p.classList.remove('open')));
+})();
+
+/* ============ МОДАЛКА РЕЙТИНГА (полноэкранная таблица) ============ */
+(function(){
+  const modal=document.getElementById('lbModal');
+  const tbody=document.getElementById('lbTbody');
+  const search=document.getElementById('lbSearch');
+  const fSubj=document.getElementById('lbFsubj');
+  const fGrade=document.getElementById('lbFgrade');
+  const count=document.getElementById('lbCount');
+  // наполняем фильтры модалки
+  fSubj.innerHTML='<option value="">Все предметы</option>'+SUBJECTS.map(s=>`<option>${s}</option>`).join('');
+  fGrade.innerHTML='<option value="">Все классы</option>'+[5,6,7,8,9,10,11].map(g=>`<option value="${g}">${g} класс</option>`).join('');
+  const medalBg=['linear-gradient(135deg,#ffce54,#f5a623)','linear-gradient(135deg,#c5cdde,#9aa6bd)','linear-gradient(135deg,#e0a274,#c8804a)'];
+
+  function filtered(){
+    const q=search.value.trim().toLowerCase(),su=fSubj.value,gr=fGrade.value;
+    return LB_ROWS.filter(s=>
+      (!q||s.name.toLowerCase().includes(q)||s.school.toLowerCase().includes(q))&&
+      (!su||s.subj===su)&&(!gr||String(s.grade)===gr));
+  }
+  window.renderLbTable=function(){
+    const rows=filtered();
+    count.textContent='Показано: '+rows.length.toLocaleString('ru-RU');
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="9" class="lb-empty">Ничего не найдено</td></tr>';return;}
+    tbody.innerHTML=rows.map(s=>{
+      const rk=s.rank<=3
+        ? `<span class="lb-medal" style="background:${medalBg[s.rank-1]}">${s.rank}</span>`
+        : `<span class="lb-rk">${s.rank}</span>`;
+      return `<tr>
+        <td class="c-rank">${rk}</td>
+        <td class="c-name">${s.name}</td>
+        <td>${s.subj}</td>
+        <td>${s.school}</td>
+        <td>${s.reg}</td>
+        <td>${s.grade}</td>
+        <td><span class="lb-badge">${s.group}</span></td>
+        <td class="c-num">${s.xp.toLocaleString('ru-RU')}</td>
+        <td class="c-num">${s.coin.toLocaleString('ru-RU')}</td>
+      </tr>`;}).join('');
+  };
+  function open(){modal.classList.add('open');modal.setAttribute('aria-hidden','false');
+    document.body.style.overflow='hidden';renderLbTable();}
+  function close(){modal.classList.remove('open');modal.setAttribute('aria-hidden','true');
+    document.body.style.overflow='';}
+
+  document.getElementById('lbMore').addEventListener('click',open);
+  document.getElementById('lbClose').addEventListener('click',close);
+  modal.addEventListener('click',e=>{if(e.target===modal)close();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))close();});
+  [search,fSubj,fGrade].forEach(el=>el.addEventListener('input',renderLbTable));
+  fSubj.addEventListener('change',renderLbTable);fGrade.addEventListener('change',renderLbTable);
+
+  // экспорт в CSV (учитывает активные фильтры)
+  document.getElementById('lbExport').addEventListener('click',()=>{
+    const rows=filtered();
+    const head=['#','Имя','Предмет','Школа','Регион','Район','Класс','Группа','XP','Bekcoin'];
+    const esc=v=>{v=String(v);return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+    const lines=[head.join(';')].concat(rows.map(s=>
+      [s.rank,s.name,s.subj,s.school,s.reg,s.dist,s.grade,s.group,s.xp,s.coin].map(esc).join(';')));
+    const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='reyting-uchenikov.csv';document.body.appendChild(a);a.click();
+    a.remove();URL.revokeObjectURL(url);
+  });
+})();
+
+/* ===== ПЕРЕКЛЮЧАТЕЛЬ РОЛЕЙ + СТРАНИЦА ПРЕДМЕТА ===== */
+(function(){
+  const LIMITED = new Set(['teacher','director','head']);
+  const LABELS  = {super:'Супер Админ',admin:'Админ',operator:'Оператор',teacher:'Учитель',director:'Директор',head:'Глав. управления'};
+
+  const SUBJ_DATA = {
+    math:      {name:'Математика',      color:'#3b5bff', avg:82, hw:76, topics:91, tests:85,
+      icon:'<line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/><line x1="4" y1="6" x2="4.01" y2="6"/><line x1="4" y1="12" x2="4.01" y2="12"/><line x1="4" y1="18" x2="4.01" y2="18"/>'},
+    physics:   {name:'Физика',          color:'#8b5cf6', avg:74, hw:67, topics:84, tests:71,
+      icon:'<circle cx="12" cy="12" r="3"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/>'},
+    chemistry: {name:'Химия',           color:'#12c99b', avg:68, hw:62, topics:78, tests:65,
+      icon:'<path d="M9 3h6m-3 0v6l-4 9a1 1 0 0 0 .9 1.45h10.2A1 1 0 0 0 20 18l-4-9V3"/><line x1="6.5" y1="14" x2="17.5" y2="14"/>'},
+    biology:   {name:'Биология',        color:'#22c55e', avg:79, hw:73, topics:88, tests:76,
+      icon:'<path d="M12 22V12"/><path d="M5 9a7 7 0 0 1 14 0c0 4.9-3 9-7 9s-7-4.1-7-9"/><path d="M12 12c0-3 1.5-6 4-8"/><path d="M12 12c0-3-1.5-6-4-8"/>'},
+    russian:   {name:'Русский язык',    color:'#f5a623', avg:65, hw:59, topics:74, tests:63,
+      icon:'<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>'},
+    english:   {name:'Английский язык', color:'#18d8e8', avg:81, hw:75, topics:89, tests:78,
+      icon:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 0-4-10 15.3 15.3 0 0 0 4-10z"/>'},
+  };
+
+  const DYNAMICS = {
+    math:      [70,74,76,73,80,82,84,81,83,85,82,82],
+    physics:   [58,62,65,63,70,72,74,71,76,78,75,74],
+    chemistry: [55,58,60,62,65,67,66,68,70,68,67,68],
+    biology:   [65,68,72,74,76,78,75,79,80,78,80,79],
+    russian:   [52,55,58,60,62,64,63,65,67,65,66,65],
+    english:   [68,71,74,76,78,80,79,81,82,80,82,81],
+  };
+
+  const PROBLEMS = {
+    math:      [{n:'Тригонометрия',p:65},{n:'Интегралы',p:71},{n:'Производные',p:58},{n:'Комплексные числа',p:74},{n:'Геом. прогрессии',p:47}],
+    physics:   [{n:'Законы Ньютона',p:68},{n:'Электромагн. индукция',p:61},{n:'Оптика',p:54},{n:'Термодинамика',p:49},{n:'Квантовая механика',p:72}],
+    chemistry: [{n:'Хим. равновесие',p:70},{n:'Орг. соединения',p:63},{n:'Электролиз',p:55},{n:'Окисление и восст.',p:66},{n:'Кислоты и основания',p:48}],
+    biology:   [{n:'Генетика',p:67},{n:'Митоз и мейоз',p:59},{n:'Фотосинтез',p:52},{n:'Экосистемы',p:45},{n:'Эволюция',p:71}],
+    russian:   [{n:'Причастные обороты',p:69},{n:'Синтаксис',p:62},{n:'Деепричастия',p:56},{n:'Пунктуация',p:73},{n:'Орфография',p:44}],
+    english:   [{n:'Времена глаголов',p:64},{n:'Артикли',p:57},{n:'Условные предложения',p:68},{n:'Пассивный залог',p:53},{n:'Фразовые глаголы',p:76}],
+  };
+
+  /* ДЗ: 3 категории (красный / жёлтый / зелёный) */
+  const DZ_DIST = {
+    math:      [8, 27, 65],  physics:   [12, 30, 58],
+    chemistry: [15, 37, 48], biology:   [10, 27, 63],
+    russian:   [18, 42, 40], english:   [9,  25, 66],
+  };
+  const DZ_LABELS = ['Слабо (0–59)','Средне (60–79)','Хорошо (80–100)'];
+  const DZ_COLORS = ['#ff5a5f','#f5a623','#12c99b'];
+
+  /* Ученики с трудностями по теме */
+  const PROB_STUDENTS = {
+    math:{
+      'Тригонометрия':     ['Данияр С.','Тимур А.','Бекзат У.','Арман Д.','Саят Ж.'],
+      'Интегралы':         ['Тимур А.','Бекзат У.','Арман Д.','Нурлан К.','Саят Ж.'],
+      'Производные':       ['Бекзат У.','Арман Д.','Нурлан К.','Данияр С.'],
+      'Комплексные числа': ['Данияр С.','Тимур А.','Арман Д.','Нурлан К.','Саят Ж.'],
+      'Геом. прогрессии':  ['Тимур А.','Нурлан К.','Саят Ж.'],
+    },
+    physics:{
+      'Законы Ньютона':         ['Данияр С.','Тимур А.','Бекзат У.','Арман Д.','Нурлан К.'],
+      'Электромагн. индукция':  ['Тимур А.','Нурлан К.','Саят Ж.'],
+      'Оптика':                 ['Бекзат У.','Нурлан К.','Данияр С.'],
+      'Термодинамика':          ['Арман Д.','Саят Ж.','Нурлан К.'],
+      'Квантовая механика':     ['Данияр С.','Тимур А.','Бекзат У.','Арман Д.','Нурлан К.','Саят Ж.'],
+    },
+    chemistry:{
+      'Хим. равновесие':    ['Данияр С.','Тимур А.','Бекзат У.','Арман Д.'],
+      'Орг. соединения':    ['Бекзат У.','Нурлан К.','Тимур А.'],
+      'Электролиз':         ['Арман Д.','Нурлан К.','Саят Ж.'],
+      'Окисление и восст.': ['Тимур А.','Бекзат У.','Нурлан К.'],
+      'Кислоты и основания':['Саят Ж.','Данияр С.'],
+    },
+    biology:{
+      'Генетика':     ['Тимур А.','Бекзат У.','Арман Д.','Саят Ж.'],
+      'Митоз и мейоз':['Нурлан К.','Бекзат У.','Арман Д.'],
+      'Фотосинтез':   ['Арман Д.','Нурлан К.'],
+      'Экосистемы':   ['Саят Ж.','Данияр С.'],
+      'Эволюция':     ['Тимур А.','Бекзат У.','Арман Д.','Нурлан К.','Саят Ж.'],
+    },
+    russian:{
+      'Причастные обороты':['Тимур А.','Бекзат У.','Арман Д.','Нурлан К.'],
+      'Синтаксис':         ['Бекзат У.','Данияр С.','Саят Ж.'],
+      'Деепричастия':      ['Арман Д.','Нурлан К.','Тимур А.'],
+      'Пунктуация':        ['Данияр С.','Тимур А.','Бекзат У.','Арман Д.','Нурлан К.','Саят Ж.'],
+      'Орфография':        ['Нурлан К.','Саят Ж.'],
+    },
+    english:{
+      'Времена глаголов':    ['Данияр С.','Тимур А.','Бекзат У.','Арман Д.'],
+      'Артикли':             ['Бекзат У.','Нурлан К.','Саят Ж.'],
+      'Условные предложения':['Тимур А.','Арман Д.','Нурлан К.'],
+      'Пассивный залог':     ['Арман Д.','Данияр С.','Саят Ж.'],
+      'Фразовые глаголы':    ['Данияр С.','Тимур А.','Бекзат У.','Арман Д.','Нурлан К.','Саят Ж.'],
+    },
+  };
+
+  const STUDENTS = [
+    {f:'Алия',    l:'Нурбекова',   g:'Ж',cls:'8А',grp:'Группа 1',sc:85, weak:{math:'Тригонометрия',physics:'Оптика',chemistry:'Электролиз',biology:'Генетика',russian:'Пунктуация',english:'Артикли'}},
+    {f:'Данияр',  l:'Сейткали',    g:'М',cls:'8А',grp:'Группа 1',sc:72, weak:{math:'Интегралы',physics:'Законы Ньютона',chemistry:'Хим. равновесие',biology:'Митоз и мейоз',russian:'Синтаксис',english:'Времена глаголов'}},
+    {f:'Айгерим', l:'Жаксыбекова', g:'Ж',cls:'8Б',grp:'Группа 2',sc:91, weak:{math:'Геом. прогрессии',physics:'Термодинамика',chemistry:'Кислоты и основания',biology:'Экосистемы',russian:'Орфография',english:'Пассивный залог'}},
+    {f:'Тимур',   l:'Ахметов',     g:'М',cls:'8Б',grp:'Группа 2',sc:64, weak:{math:'Комплексные числа',physics:'Квантовая механика',chemistry:'Орг. соединения',biology:'Эволюция',russian:'Причастные обороты',english:'Условные предложения'}},
+    {f:'Зарина',  l:'Мусаева',     g:'Ж',cls:'9А',grp:'Группа 1',sc:78, weak:{math:'Производные',physics:'Электромагн. индукция',chemistry:'Окисление и восст.',biology:'Фотосинтез',russian:'Деепричастия',english:'Фразовые глаголы'}},
+    {f:'Бекзат',  l:'Уразалиев',   g:'М',cls:'9А',grp:'Группа 1',sc:55, weak:{math:'Интегралы',physics:'Квантовая механика',chemistry:'Хим. равновесие',biology:'Эволюция',russian:'Причастные обороты',english:'Фразовые глаголы'}},
+    {f:'Малика',  l:'Сейтова',     g:'Ж',cls:'9Б',grp:'Группа 2',sc:88, weak:{math:'Тригонометрия',physics:'Оптика',chemistry:'Электролиз',biology:'Генетика',russian:'Синтаксис',english:'Артикли'}},
+    {f:'Арман',   l:'Джаксыбеков', g:'М',cls:'9Б',grp:'Группа 2',sc:43, weak:{math:'Комплексные числа',physics:'Квантовая механика',chemistry:'Хим. равновесие',biology:'Эволюция',russian:'Пунктуация',english:'Фразовые глаголы'}},
+    {f:'Диана',   l:'Абдуллаева',  g:'Ж',cls:'8А',grp:'Группа 1',sc:96, weak:{math:'Геом. прогрессии',physics:'Термодинамика',chemistry:'Кислоты и основания',biology:'Экосистемы',russian:'Орфография',english:'Пассивный залог'}},
+    {f:'Нурлан',  l:'Касымов',     g:'М',cls:'8Б',grp:'Группа 2',sc:67, weak:{math:'Производные',physics:'Электромагн. индукция',chemistry:'Орг. соединения',biology:'Митоз и мейоз',russian:'Причастные обороты',english:'Артикли'}},
+    {f:'Гульнар', l:'Смагулова',   g:'Ж',cls:'9А',grp:'Группа 1',sc:74, weak:{math:'Тригонометрия',physics:'Оптика',chemistry:'Окисление и восст.',biology:'Фотосинтез',russian:'Деепричастия',english:'Условные предложения'}},
+    {f:'Саят',    l:'Жумаев',      g:'М',cls:'9Б',grp:'Группа 2',sc:59, weak:{math:'Интегралы',physics:'Квантовая механика',chemistry:'Электролиз',biology:'Эволюция',russian:'Пунктуация',english:'Фразовые глаголы'}},
+  ];
+
+  const MONTHS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+
+  /* DOM refs */
+  const wrap      = document.getElementById('sbRole');
+  const btn       = document.getElementById('roleBtn');
+  const labelEl   = document.getElementById('roleLabel');
+  const pop       = document.getElementById('rolePop');
+  const fullLinks = document.querySelectorAll('[data-role-full]');
+  const tabsBar   = document.getElementById('tabs');
+  const app       = document.querySelector('.app');
+  const subjPage  = document.getElementById('subjPage');
+  const subjBack  = document.getElementById('subjBack');
+
+  let dynChart = null, dzChart = null;
+  let currentSubjKey = null;
+
+  function destroySubjCharts(){
+    if(dynChart){ dynChart.destroy(); dynChart = null; }
+    if(dzChart){  dzChart.destroy();  dzChart = null; }
+  }
+
+  function openSubject(key){
+    const d = SUBJ_DATA[key];
+    if(!d) return;
+    destroySubjCharts();
+    currentSubjKey = key;
+
+    /* заголовок */
+    document.getElementById('subjPageIco').style.background = d.color;
+    document.getElementById('subjPageIco').innerHTML =
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d.icon}</svg>`;
+    document.getElementById('subjPageName').textContent = d.name;
+
+    /* кольцо среднего балла */
+    const circumference = 2 * Math.PI * 50;
+    const offset = circumference * (1 - d.avg / 100);
+    const ring = document.getElementById('subjRingFg');
+    ring.style.stroke = d.color;
+    ring.style.strokeDasharray = circumference;
+    ring.style.strokeDashoffset = offset;
+    document.getElementById('subjScoreBig').textContent = d.avg;
+
+    /* иконки + значения stat-карточек */
+    ['subjIco1','subjIco2','subjIco3'].forEach(id =>
+      document.getElementById(id).style.background = d.color);
+    document.getElementById('subjHwAvg').textContent     = d.hw;
+    document.getElementById('subjTopicsPct').textContent = d.topics + '%';
+    document.getElementById('subjTestsPct').textContent  = d.tests  + '%';
+
+    /* статус-бейдж ДЗ */
+    const hwBadge = document.getElementById('subjHwBadge');
+    if(hwBadge){
+      const hwCls = d.hw >= 80 ? 'hi' : d.hw >= 60 ? 'mid' : 'lo';
+      const hwLbl = d.hw >= 80 ? 'Хороший' : d.hw >= 60 ? 'Средний' : 'Требует внимания';
+      hwBadge.textContent  = hwLbl;
+      hwBadge.className    = `sp-hw-badge ${hwCls}`;
+    }
+
+    /* сравнение с другими предметами */
+    const compareEl = document.getElementById('subjCompareList');
+    compareEl.innerHTML = Object.entries(SUBJ_DATA).map(([k,s]) => `
+      <div class="sp-c-item${k===key?' cur':''}">
+        <span class="sp-c-dot" style="background:${s.color}"></span>
+        <span class="sp-c-name">${s.name}</span>
+        <div class="sp-c-bar-bg"><div class="sp-c-bar" style="width:${s.avg}%;background:${k===key?s.color:'#c5cae9'}"></div></div>
+        <span class="sp-c-val">${s.avg}</span>
+      </div>`).join('');
+
+    /* раскрываемые проблемные темы */
+    const probEl = document.getElementById('subjProbList');
+    const chevSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
+    probEl.innerHTML = (PROBLEMS[key]||[]).map((p,i) => {
+      const stus = (PROB_STUDENTS[key]||{})[p.n] || [];
+      const chips = stus.map(s => `<span class="sp-stu-chip lo">${s}</span>`).join('');
+      return `
+      <div class="sp-prob-group" data-idx="${i}">
+        <div class="sp-prob-item">
+          <span class="sp-prob-num">${i+1}</span>
+          <span class="sp-prob-name">${p.n}</span>
+          <div class="sp-prob-bar-bg"><div class="sp-prob-bar" style="width:${p.p}%"></div></div>
+          <span class="sp-prob-pct">${p.p}%</span>
+          <span class="sp-prob-chev">${chevSvg}</span>
+        </div>
+        <div class="sp-prob-expand">
+          <div class="sp-prob-stu-lbl">Ученики с трудностями:</div>
+          <div class="sp-prob-stu-row">${chips || '<span style="color:#8a94b0;font-size:12px">Нет данных</span>'}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    /* клик по теме — раскрыть/закрыть */
+    probEl.onclick = function(e){
+      const item = e.target.closest('.sp-prob-item');
+      if(!item) return;
+      item.closest('.sp-prob-group').classList.toggle('open');
+    };
+
+    /* синхронизация фильтров с дашборда */
+    const dashCls = document.getElementById('ttfClass')?.value || '';
+    const dashGrp = document.getElementById('ttfGroup')?.value || '';
+    document.getElementById('spFilterClass').value = dashCls;
+    document.getElementById('spFilterGroup').value = dashGrp;
+    renderStudentsTable(dashCls, dashGrp);
+
+    /* легенда ДЗ */
+    document.getElementById('subjDzLegend').innerHTML = DZ_LABELS.map((lbl,i) => `
+      <div class="sp-dz-leg-item">
+        <span class="sp-dz-leg-dot" style="background:${DZ_COLORS[i]}"></span>
+        <span>${lbl}</span>
+        <span class="sp-dz-leg-val">${DZ_DIST[key][i]}%</span>
+      </div>`).join('');
+
+    subjPage.classList.add('open');
+
+    /* ЧАРТЫ — после открытия страницы */
+    requestAnimationFrame(() => {
+      /* динамика успеваемости */
+      const dynCtx = document.getElementById('cSubjDynamic').getContext('2d');
+      dynChart = new Chart(dynCtx, {
+        type: 'line',
+        data: {
+          labels: MONTHS,
+          datasets: [{
+            label: 'Средний балл', data: DYNAMICS[key],
+            borderColor: d.color, backgroundColor: d.color + '22',
+            borderWidth: 2.5, fill: true, tension: 0.4,
+            pointRadius: 5, pointHoverRadius: 7,
+            pointBackgroundColor: d.color
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              mode: 'index', intersect: false,
+              backgroundColor: '#1b2550',
+              titleColor: '#b0b8d0', titleFont: { size: 11 },
+              bodyColor: '#fff', bodyFont: { size: 13, weight: '700' },
+              padding: 12, cornerRadius: 10,
+              callbacks: { label: ctx => ` Балл: ${ctx.parsed.y}` }
+            }
+          },
+          scales: {
+            y: { min: 40, max: 100, grid:{color:'#f0f2f8'}, ticks:{color:'#8a94b0',font:{size:11}} },
+            x: { grid:{display:false}, ticks:{color:'#8a94b0',font:{size:11}} }
+          }
+        }
+      });
+
+      /* donut ДЗ */
+      const dzCtx = document.getElementById('cSubjDZ').getContext('2d');
+      dzChart = new Chart(dzCtx, {
+        type: 'doughnut',
+        data: {
+          labels: DZ_LABELS,
+          datasets: [{
+            data: DZ_DIST[key], backgroundColor: DZ_COLORS,
+            borderWidth: 2, borderColor: '#fff', hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: false, cutout: '70%',
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}%` } }
+          }
+        }
+      });
+    });
+  }
+
+  function renderStudentsTable(cls, grp){
+    const key = currentSubjKey;
+    const filtered = STUDENTS.filter(s =>
+      (!cls || s.cls === cls) && (!grp || s.grp === grp));
+    document.getElementById('subjStudentsTbody').innerHTML = filtered.length
+      ? filtered.map((s,i) => {
+          const badge = s.sc >= 80 ? 'hi' : s.sc >= 60 ? 'mid' : 'lo';
+          const weakTopic = (key && s.weak && s.weak[key]) ? s.weak[key] : '—';
+          return `<tr>
+            <td>${i+1}</td><td>${s.f}</td><td>${s.l}</td><td>${s.g}</td>
+            <td>${s.cls}</td><td>${s.grp}</td>
+            <td><span class="sp-badge ${badge}">${s.sc}</span></td>
+            <td style="color:#ff5a5f;font-weight:600;font-size:12.5px">${weakTopic}</td>
+          </tr>`;
+        }).join('')
+      : `<tr><td colspan="8" style="text-align:center;color:#8a94b0;padding:24px">Нет учеников по выбранным фильтрам</td></tr>`;
+  }
+
+  document.getElementById('spFilterClass').addEventListener('change', function(){
+    renderStudentsTable(this.value, document.getElementById('spFilterGroup').value);
+  });
+  document.getElementById('spFilterGroup').addEventListener('change', function(){
+    renderStudentsTable(document.getElementById('spFilterClass').value, this.value);
+  });
+
+  subjBack.addEventListener('click', () => {
+    destroySubjCharts();
+    subjPage.classList.remove('open');
+    document.getElementById('spFilterClass').value = '';
+    document.getElementById('spFilterGroup').value = '';
+  });
+
+  document.querySelectorAll('.ts-card[data-subj]').forEach(card =>
+    card.addEventListener('click', () => openSubject(card.dataset.subj)));
+
+  let dirChartsInited = false;
+  function initDirCharts(){
+    if(dirChartsInited) return;
+    dirChartsInited = true;
+
+    const MONTHS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+
+    /* ——— Данные ——— */
+    const DIR_CLASSES = [
+      {cls:'5А',sc:88},{cls:'5Б',sc:85},{cls:'5В',sc:82},
+      {cls:'6А',sc:83},{cls:'6Б',sc:71},{cls:'6В',sc:79},
+      {cls:'7А',sc:76},{cls:'7Б',sc:72},{cls:'7В',sc:80},
+      {cls:'8А',sc:82},{cls:'8Б',sc:79},{cls:'8В',sc:74},
+      {cls:'9А',sc:74},{cls:'9Б',sc:68},{cls:'9В',sc:77},
+      {cls:'10А',sc:85},{cls:'10Б',sc:77},{cls:'10В',sc:80},
+      {cls:'11А',sc:80},{cls:'11Б',sc:62},{cls:'11В',sc:73},
+    ];
+
+    /* 1. Успеваемость по классам — прокручиваемый горизонтальный бар */
+    const clsCanvas = document.getElementById('cDirClasses');
+    clsCanvas.height = DIR_CLASSES.length * 34;
+    new Chart(clsCanvas.getContext('2d'),{
+      type:'bar',
+      data:{
+        labels: DIR_CLASSES.map(c=>c.cls),
+        datasets:[{
+          label:'Средний балл',
+          data: DIR_CLASSES.map(c=>c.sc),
+          backgroundColor: DIR_CLASSES.map(c=> c.sc>=80?'#12c99b': c.sc>=70?'#3b5bff': c.sc>=60?'#f5a623':'#ff5a5f'),
+          borderRadius:5, borderSkipped:false
+        }]
+      },
+      options:{
+        indexAxis:'y', responsive:false, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` Балл: ${ctx.parsed.x}`}}},
+        scales:{
+          x:{min:50,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},
+          y:{grid:{display:false},ticks:{color:'#3a4256',font:{size:11,weight:'600'}}}
+        }
+      }
+    });
+
+    /* 2. Выполнение ДЗ по школе — пончик */
+    const dirDzLabels = ['Слабо (0–59)','Средне (60–79)','Хорошо (80–100)'];
+    const dirDzColors = ['#ff5a5f','#f5a623','#12c99b'];
+    const dirDzData   = [12, 27, 61];
+    new Chart(document.getElementById('cDirDZ').getContext('2d'),{
+      type:'doughnut',
+      data:{labels:dirDzLabels,datasets:[{data:dirDzData,backgroundColor:dirDzColors,borderWidth:2,borderColor:'#fff',hoverOffset:5}]},
+      options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}%`}}}}
+    });
+    document.getElementById('dirDzLegend').innerHTML = dirDzLabels.map((l,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${dirDzColors[i]};flex-shrink:0;"></span>
+        <span style="font-size:12.5px;font-weight:600;color:#3a4256;flex:1">${l}</span>
+        <span style="font-size:13px;font-weight:800;color:#1b2550">${dirDzData[i]}%</span>
+      </div>`).join('');
+
+    /* 3. Успеваемость по предметам */
+    new Chart(document.getElementById('cDirSubjects').getContext('2d'),{
+      type:'bar',
+      data:{
+        labels:['Математика','Физика','Химия','Биология','Рус. язык','Англ. язык'],
+        datasets:[{
+          label:'Средний балл',
+          data:[82, 74, 68, 79, 65, 81],
+          backgroundColor:['#3b5bff','#8b5cf6','#12c99b','#3ea0f7','#f5a623','#18d8e8'],
+          borderRadius:6, borderSkipped:false
+        }]
+      },
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` Балл: ${ctx.parsed.x}`}}},
+        scales:{
+          x:{min:50,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},
+          y:{grid:{display:false},ticks:{color:'#3a4256',font:{size:11,weight:'600'}}}
+        }
+      }
+    });
+
+    /* 4. Динамика успеваемости по школе */
+    new Chart(document.getElementById('cDirDynamic').getContext('2d'),{
+      type:'line',
+      data:{
+        labels:MONTHS,
+        datasets:[{
+          label:'Средний балл по школе',
+          data:[70,72,69,74,76,73,78,75,79,77,80,82],
+          borderColor:'#3b5bff', backgroundColor:'#3b5bff22',
+          borderWidth:2.5, fill:true, tension:0.4, pointRadius:4, pointHoverRadius:7,
+          pointBackgroundColor:'#3b5bff'
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{display:false},
+          tooltip:{mode:'index',intersect:false,backgroundColor:'#1b2550',
+            titleColor:'#b0b8d0',titleFont:{size:11},bodyColor:'#fff',bodyFont:{size:13,weight:'700'},
+            padding:12,cornerRadius:10,callbacks:{label:ctx=>` Балл: ${ctx.parsed.y}`}}
+        },
+        scales:{
+          y:{min:60,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},
+          x:{grid:{display:false},ticks:{color:'#8a94b0',font:{size:11}}}
+        }
+      }
+    });
+
+    /* 5. Проблемные темы по предметам — полный список */
+    const dirProbs = [
+      {subj:'Математика',   color:'#3b5bff', topics:[{n:'Тригонометрия',p:72},{n:'Интегралы',p:65},{n:'Производные',p:58},{n:'Комплексные числа',p:54},{n:'Геом. прогрессии',p:49}]},
+      {subj:'Физика',       color:'#8b5cf6', topics:[{n:'Квантовая механика',p:69},{n:'Электромагн. индукция',p:61},{n:'Оптика',p:57},{n:'Термодинамика',p:52}]},
+      {subj:'Химия',        color:'#12c99b', topics:[{n:'Хим. равновесие',p:63},{n:'Электролиз',p:55},{n:'Орг. соединения',p:51},{n:'Окисление',p:48}]},
+      {subj:'Биология',     color:'#3ea0f7', topics:[{n:'Генетика',p:67},{n:'Эволюция',p:60},{n:'Митоз и мейоз',p:55}]},
+      {subj:'Русский язык', color:'#f5a623', topics:[{n:'Пунктуация',p:71},{n:'Причастные обороты',p:64},{n:'Синтаксис',p:58}]},
+      {subj:'Англ. язык',   color:'#18d8e8', topics:[{n:'Фразовые глаголы',p:69},{n:'Условные предложения',p:62},{n:'Артикли',p:55}]},
+    ];
+    document.getElementById('dirProbList').innerHTML = dirProbs.map(s=>`
+      <div class="dir-prob-subj">${s.subj}</div>
+      ${s.topics.map(t=>`
+        <div class="dir-prob-row">
+          <div class="dir-prob-name">${t.n}</div>
+          <div class="dir-prob-bar-bg"><div class="dir-prob-bar" style="width:${t.p}%;background:${s.color}"></div></div>
+          <div class="dir-prob-pct">${t.p}%</div>
+        </div>`).join('')}`).join('');
+
+    /* 6. Самые слабые классы */
+    const weakGroups = [
+      {name:'11Б',sc:62},{name:'6Б',sc:71},{name:'9Б',sc:68},
+      {name:'7Б',sc:72},{name:'11В',sc:73},{name:'8В',sc:74},
+      {name:'9А',sc:74},{name:'7А',sc:76},{name:'10Б',sc:77},
+      {name:'9В',sc:77},{name:'8Б',sc:79},{name:'6В',sc:79},
+    ];
+    document.getElementById('dirWeakList').innerHTML = weakGroups.map((g,i)=>`
+      <div class="dir-weak-row">
+        <div class="dir-weak-rank">${i+1}</div>
+        <div class="dir-weak-name">${g.name}</div>
+        <div class="dir-weak-bar-bg"><div class="dir-weak-bar" style="width:${g.sc}%;background:${g.sc<70?'#ff5a5f':g.sc<80?'#f5a623':'#12c99b'}"></div></div>
+        <div class="dir-weak-val" style="color:${g.sc<70?'#ff5a5f':g.sc<80?'#f5a623':'#12c99b'}">${g.sc}</div>
+      </div>`).join('');
+
+    /* 7. Предметы, требующие внимания */
+    const attnSubjs = [
+      {name:'Русский язык', sc:65, prev:68, subj:'russian'},
+      {name:'Химия',        sc:68, prev:65, subj:'chemistry'},
+      {name:'Физика',       sc:74, prev:76, subj:'physics'},
+      {name:'Биология',     sc:79, prev:77, subj:'biology'},
+    ];
+    document.getElementById('dirAttnList').innerHTML = attnSubjs.map(s=>{
+      const up = s.sc >= s.prev;
+      const cls = s.sc < 70 ? 'lo' : 'mid';
+      const lbl = s.sc < 70 ? 'Требует внимания' : 'Средний';
+      return `<div class="dir-attn-row">
+        <div class="dir-attn-subj">${s.name}</div>
+        <div class="dir-attn-score" style="color:${s.sc<70?'#ff5a5f':'#f5a623'}">${s.sc}</div>
+        <span class="dir-attn-badge ${cls}">${lbl}</span>
+        <span class="dir-attn-trend ${up?'up':'dn'}">${up?'↑':'↓'}</span>
+      </div>`;
+    }).join('');
+
+    /* 8. Сводная таблица по всем классам */
+    const classTableData = [
+      {cls:'5А', n:28, dz:88, weak:'Химия',        attn:2, trend:1},
+      {cls:'5Б', n:26, dz:85, weak:'Биология',     attn:3, trend:1},
+      {cls:'5В', n:27, dz:82, weak:'Физика',        attn:4, trend:0},
+      {cls:'6А', n:29, dz:83, weak:'Рус. язык',    attn:3, trend:1},
+      {cls:'6Б', n:25, dz:71, weak:'Математика',   attn:7, trend:-1},
+      {cls:'6В', n:28, dz:79, weak:'Физика',        attn:5, trend:0},
+      {cls:'7А', n:30, dz:76, weak:'Химия',         attn:6, trend:1},
+      {cls:'7Б', n:27, dz:72, weak:'Математика',   attn:8, trend:-1},
+      {cls:'7В', n:29, dz:80, weak:'Физика',        attn:4, trend:1},
+      {cls:'8А', n:28, dz:82, weak:'Рус. язык',    attn:3, trend:1},
+      {cls:'8Б', n:26, dz:79, weak:'Химия',         attn:5, trend:0},
+      {cls:'8В', n:27, dz:74, weak:'Математика',   attn:7, trend:-1},
+      {cls:'9А', n:25, dz:74, weak:'Физика',        attn:6, trend:1},
+      {cls:'9Б', n:24, dz:68, weak:'Химия',         attn:9, trend:-1},
+      {cls:'9В', n:26, dz:77, weak:'Биология',     attn:5, trend:0},
+      {cls:'10А',n:23, dz:85, weak:'Рус. язык',    attn:2, trend:1},
+      {cls:'10Б',n:22, dz:77, weak:'Математика',   attn:5, trend:0},
+      {cls:'10В',n:24, dz:80, weak:'Физика',        attn:4, trend:1},
+      {cls:'11А',n:21, dz:80, weak:'Химия',         attn:3, trend:1},
+      {cls:'11Б',n:20, dz:62, weak:'Математика',   attn:11,trend:-1},
+      {cls:'11В',n:22, dz:73, weak:'Физика',        attn:6, trend:-1},
+    ];
+    const dzSt = dz => dz>=80?['hi','Хороший']:dz>=60?['mid','Средний']:['lo','Слабо'];
+    document.getElementById('dirClassTableBody').innerHTML = classTableData.map(r=>{
+      const [cls,lbl] = dzSt(r.dz);
+      const tr = r.trend===1?'<span class="dir-trend-up">↑</span>':r.trend===-1?'<span class="dir-trend-dn">↓</span>':'<span style="color:#8a94b0">→</span>';
+      return `<tr>
+        <td><span class="dir-class-name">${r.cls}</span></td>
+        <td>${r.n}</td>
+        <td><strong>${r.dz}</strong></td>
+        <td><span class="sp-badge ${cls}">${lbl}</span></td>
+        <td style="color:#8a94b0">${r.weak}</td>
+        <td><span class="dir-attn-count">${r.attn}</span></td>
+        <td>${tr}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function applyRole(role){
+    labelEl.textContent = LABELS[role];
+    const limited = LIMITED.has(role);
+    app.classList.remove('role-limited','role-teacher','role-director');
+    if(limited) app.classList.add('role-limited');
+    if(role === 'teacher') app.classList.add('role-teacher');
+    if(role === 'director') { app.classList.add('role-director'); initDirCharts(); }
+    fullLinks.forEach(l => l.style.display = limited ? 'none' : '');
+    tabsBar.style.display = limited ? 'none' : '';
+    destroySubjCharts();
+    subjPage.classList.remove('open');
+    const targetTab = limited ? 'edu' : 'system';
+    const tabBtn = document.querySelector(`.tab-btn[data-tab="${targetTab}"]`);
+    if(tabBtn) tabBtn.click();
+    pop.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.role === role));
+    wrap.classList.remove('open');
+  }
+
+  btn.addEventListener('click', e => { e.stopPropagation(); wrap.classList.toggle('open'); });
+  document.addEventListener('click', e => { if(!wrap.contains(e.target)) wrap.classList.remove('open'); });
+  var rolePages = { teacher: 'teacher.html', director: 'director.html', head: 'head.html', nachalnik: 'nachalnik.html', zav: 'zav.html' };
+  pop.querySelectorAll('button[data-role]').forEach(b =>
+    b.addEventListener('click', () => {
+      var r = b.dataset.role;
+      if(rolePages[r]){ localStorage.setItem('aibek_role', r); window.location.href = rolePages[r]; }
+      else { localStorage.setItem('aibek_role', r); applyRole(r); }
+    }));
+
+  /* Пометить как инициализированные — sidebar.js пропустит их */
+  btn.dataset.navInit = '1';
+  pop.dataset.navInit = '1';
+
+  const savedRole = localStorage.getItem('aibek_role');
+  applyRole((savedRole && !rolePages[savedRole]) ? savedRole : 'super');
+})();
+
+/* ===== COLLAPSE / EXPAND SIDEBAR ===== */
+(function(){
+  const sidebar  = document.getElementById('sidebar');
+  const toggleBtn = document.getElementById('sbToggle');
+  const STORAGE_KEY = 'aibek_sidebar_collapsed';
+
+  function setSidebar(collapsed){
+    sidebar.classList.toggle('collapsed', collapsed);
+    toggleBtn.title = collapsed ? 'Развернуть меню' : 'Свернуть меню';
+    try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch(e){}
+  }
+
+  toggleBtn.addEventListener('click', () => setSidebar(!sidebar.classList.contains('collapsed')));
+
+  /* восстановить состояние из localStorage */
+  try {
+    if(localStorage.getItem(STORAGE_KEY) === '1') setSidebar(true);
+  } catch(e){}
+
+  /* tooltips для иконок в свёрнутом режиме */
+  document.querySelectorAll('.sb-link').forEach(link => {
+    const text = link.querySelector('span');
+    if(!text) return;
+    link.addEventListener('mouseenter', () => {
+      if(!sidebar.classList.contains('collapsed')) return;
+      const tip = document.createElement('div');
+      tip.className = 'sb-tip';
+      tip.textContent = text.textContent;
+      const r = link.getBoundingClientRect();
+      tip.style.cssText = `position:fixed;left:${r.right+10}px;top:${r.top+r.height/2}px;
+        transform:translateY(-50%);background:#1b2550;color:#fff;font-size:12px;font-weight:700;
+        padding:6px 12px;border-radius:9px;white-space:nowrap;z-index:9999;
+        box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none;`;
+      document.body.appendChild(tip);
+      link._tip = tip;
+    });
+    link.addEventListener('mouseleave', () => {
+      if(link._tip){ link._tip.remove(); link._tip = null; }
+    });
+  });
+})();
+</script>
+<script src="sidebar.js"></script>
+</body>
+</html>

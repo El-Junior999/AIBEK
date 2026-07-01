@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI-BEK · Предмет</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* Page-level overrides for standalone layout */
+  body { background: var(--sb); }
+  .app { display: flex; min-height: 100vh; }
+
+  /* Sidebar — same as dashboard */
+  .sidebar {
+    width: var(--side-w); flex-shrink: 0; position: sticky; top: 0; height: 100vh;
+    background: linear-gradient(185deg, var(--sb), var(--sb2));
+    display: flex; flex-direction: column; padding: 26px 20px 22px; color: #fff;
+    overflow: hidden; transition: width .3s ease, padding .3s ease;
+  }
+  .sb-brand { display: flex; align-items: center; gap: 3px; font-size: 27px; font-weight: 800;
+    letter-spacing: .5px; padding: 4px 8px 26px; overflow: hidden; white-space: nowrap; }
+  .sb-brand .ai, .sb-brand .bek { color: #fff; }
+  .sb-nav { display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; }
+  .sb-link { display: flex; align-items: center; gap: 14px; padding: 13px 16px; border-radius: 14px;
+    color: rgba(255,255,255,.86); font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: background .15s, color .15s; text-decoration: none; white-space: nowrap; }
+  .sb-link svg { width: 21px; height: 21px; flex-shrink: 0; stroke-width: 2; }
+  .sb-link:hover { background: rgba(255,255,255,.13); color: #fff; }
+  .sb-link.active { background: #fff; color: var(--blue); font-weight: 700; box-shadow: 0 10px 22px rgba(20,30,80,.18); }
+  .sb-foot { margin-top: 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .sb-mascot { width: 160px; max-width: 100%; height: auto; display: block; border-radius: 0; object-fit: contain; }
+  .sb-logout { width: 46px; height: 46px; border-radius: 14px; border: none; flex-shrink: 0;
+    background: #fff; color: #ff3b3b; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 10px 22px rgba(20,30,80,.18); transition: transform .15s; }
+  .sb-logout:hover { transform: translateY(-2px); }
+
+  /* Main content area */
+  .main {
+    flex: 1; min-width: 0; background: var(--page); border-top-left-radius: 38px;
+    padding: 24px 34px 40px; display: flex; flex-direction: column; gap: 24px;
+    position: relative; overflow: hidden;
+  }
+
+  /* Topbar */
+  .topbar { display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
+  .tb-flag { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(28,40,90,.12); display: flex; }
+  .tb-flag svg { width: 100%; height: 100%; }
+  .tb-sep { width: 1px; height: 30px; background: #dfe3ee; }
+  .tb-user { display: flex; align-items: center; gap: 11px; }
+  .tb-avatar { width: 38px; height: 38px; border-radius: 50%; background: #e7eaf4; color: #8a91a6;
+    display: flex; align-items: center; justify-content: center; }
+  .tb-user b { font-size: 15px; font-weight: 700; color: var(--ink); }
+
+  /* Back link */
+  .subj-back {
+    display: inline-flex; align-items: center; gap: 7px; margin-bottom: 22px;
+    padding: 9px 16px; border-radius: 12px; border: none; background: #fff;
+    font-size: 13.5px; font-weight: 700; color: #3a4256; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,.07); transition: background .15s;
+    text-decoration: none;
+  }
+  .subj-back:hover { background: #eef0ff; color: var(--blue); }
+  .subj-back svg { width: 16px; height: 16px; }
+
+  /* Subject header */
+  .subj-page-head { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+  .subj-page-ico { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .subj-page-ico svg { width: 30px; height: 30px; color: #fff; }
+  .subj-page-name { font-size: 24px; font-weight: 900; color: #1b2550; }
+
+  /* Filters */
+  .sp-filters { margin-bottom: 20px; }
+  .uni-filter { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;
+    background: #fff; border-radius: 18px; padding: 18px 22px;
+    box-shadow: 0 2px 14px rgba(30,40,100,.08); }
+  .uf-sep { width: 1px; background: #eef0f6; align-self: stretch; margin: 0 4px; }
+  .uf-group { display: flex; flex-direction: column; gap: 6px; }
+  .uf-lbl { font-size: 11px; font-weight: 700; color: #8a94b0; text-transform: uppercase; letter-spacing: .6px; }
+  .uf-ctrl { padding: 10px 14px; border-radius: 12px; border: 1.5px solid #e8eaf6;
+    background: #f8f9ff; font-size: 13.5px; font-weight: 600; color: #3a4256;
+    transition: border-color .15s, box-shadow .15s; min-width: 120px; font-family: inherit; }
+  .uf-ctrl:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,91,255,.1); }
+  .uf-sel { padding-right: 34px;
+    background: #f8f9ff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a94b0' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center;
+    appearance: none; }
+
+  /* Top row: score ring + compare */
+  .sp-top-row { display: flex; gap: 18px; margin-bottom: 18px; }
+  .sp-score-card { flex: 0 0 240px; background: #fff; border-radius: 20px; padding: 28px 20px;
+    box-shadow: 0 2px 12px rgba(30,40,100,.07); display: flex; flex-direction: column;
+    align-items: center; text-align: center; gap: 14px; }
+  .sp-ring-wrap { position: relative; width: 150px; height: 150px; }
+  .sp-ring { width: 150px; height: 150px; transform: rotate(-90deg); }
+  .sp-ring-bg { fill: none; stroke: #eef0ff; stroke-width: 10; }
+  .sp-ring-fg { fill: none; stroke-width: 10; stroke-linecap: round; stroke-dasharray: 314;
+    stroke-dashoffset: 78; transition: stroke-dashoffset .7s ease; }
+  .sp-ring-overlay { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px; }
+  .sp-score-big { font-size: 40px; font-weight: 900; color: #1b2550; line-height: 1; }
+  .sp-score-max { font-size: 12px; color: #8a94b0; font-weight: 600; }
+  .sp-score-lbl { font-size: 12.5px; font-weight: 700; color: #8a94b0; }
+
+  .sp-compare-card { flex: 1; background: #fff; border-radius: 20px; padding: 22px 24px;
+    box-shadow: 0 2px 12px rgba(30,40,100,.07); }
+  .sp-compare-title { font-size: 14px; font-weight: 800; color: #1b2550; margin-bottom: 16px; }
+  .sp-c-item { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+  .sp-c-item:last-child { margin-bottom: 0; }
+  .sp-c-item.cur .sp-c-name { font-weight: 800; }
+  .sp-c-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .sp-c-name { font-size: 13px; font-weight: 600; color: #3a4256; width: 130px; flex-shrink: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sp-c-bar-bg { flex: 1; height: 8px; background: #eef0ff; border-radius: 99px; overflow: hidden; }
+  .sp-c-bar { height: 100%; border-radius: 99px; transition: width .5s ease; }
+  .sp-c-val { font-size: 13px; font-weight: 800; color: #1b2550; width: 26px; text-align: right; flex-shrink: 0; }
+
+  /* Stats row */
+  .sp-stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; margin-bottom: 18px; }
+  .sp-stat { background: #fff; border-radius: 20px; padding: 22px 20px;
+    box-shadow: 0 2px 12px rgba(30,40,100,.07); }
+  .sp-stat-ico { width: 42px; height: 42px; border-radius: 13px; display: flex; align-items: center;
+    justify-content: center; margin-bottom: 14px; }
+  .sp-stat-ico svg { width: 20px; height: 20px; color: #fff; }
+  .sp-stat-num { font-size: 30px; font-weight: 900; color: #1b2550; margin-bottom: 4px; }
+  .sp-stat-lbl { font-size: 12.5px; font-weight: 600; color: #8a94b0; }
+  .sp-hw-badge { display: inline-block; padding: 4px 12px; border-radius: 8px; font-size: 11.5px; font-weight: 800; margin-top: 6px; }
+  .sp-hw-badge.hi { background: #e6faf3; color: #12c99b; }
+  .sp-hw-badge.mid { background: #fff8e6; color: #f5a623; }
+  .sp-hw-badge.lo { background: #ffe8e8; color: #ff5a5f; }
+
+  /* Two-column layout: dynamics + ring on left side already; this is the dynamics section */
+  .sp-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+  .sp-dynamics { background: #fff; border-radius: 20px; padding: 22px 24px;
+    box-shadow: 0 2px 12px rgba(30,40,100,.07); }
+  .sp-dynamics-title { font-size: 14px; font-weight: 800; color: #1b2550; margin-bottom: 16px; }
+
+  /* Mid row: problem topics + dz donut */
+  .sp-mid-row { display: flex; gap: 18px; margin-bottom: 18px; }
+  .sp-prob-card { flex: 1; background: #fff; border-radius: 20px; padding: 22px 24px;
+    box-shadow: 0 2px 12px rgba(30,40,100,.07); }
+  .sp-prob-title { font-size: 14px; font-weight: 800; color: #1b2550; margin-bottom: 14px; }
+  .sp-prob-item { display: flex; align-items: center; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid #f0f2f8; }
+  .sp-prob-item:last-child { border-bottom: none; }
+  .sp-prob-num { font-size: 12px; font-weight: 800; color: #8a94b0; width: 16px; flex-shrink: 0; }
+  .sp-prob-name { flex: 1; font-size: 13px; font-weight: 600; color: #1b2550; }
+  .sp-prob-bar-bg { width: 70px; height: 6px; background: #ffe8e8; border-radius: 99px; overflow: hidden; flex-shrink: 0; }
+  .sp-prob-bar { height: 100%; background: #ff5a5f; border-radius: 99px; }
+  .sp-prob-pct { font-size: 12px; font-weight: 800; color: #ff5a5f; width: 30px; text-align: right; flex-shrink: 0; }
+
+  /* Expandable problem topics */
+  .sp-prob-group { border-bottom: 1px solid #f0f2f8; }
+  .sp-prob-group:last-child { border-bottom: none; }
+  .sp-prob-group .sp-prob-item { border-bottom: none; cursor: pointer; border-radius: 8px; transition: background .12s; }
+  .sp-prob-group .sp-prob-item:hover { background: #f8f9ff; }
+  .sp-prob-chev { flex-shrink: 0; transition: transform .22s; color: #b0b8d0; }
+  .sp-prob-chev svg { width: 15px; height: 15px; display: block; }
+  .sp-prob-group.open .sp-prob-chev { transform: rotate(90deg); }
+  .sp-prob-expand { display: none; padding: 6px 12px 12px 38px; }
+  .sp-prob-group.open .sp-prob-expand { display: block; }
+  .sp-prob-stu-lbl { font-size: 11.5px; font-weight: 700; color: #8a94b0; margin-bottom: 7px; }
+  .sp-prob-stu-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sp-stu-chip { padding: 4px 11px; border-radius: 99px; font-size: 12px; font-weight: 600;
+    background: #f0f2ff; color: var(--blue); }
+  .sp-stu-chip.lo { background: #ffe8e8; color: #ff5a5f; }
+
+  /* DZ donut card */
+  .sp-dz-card { width: 270px; flex-shrink: 0; background: #fff; border-radius: 20px; padding: 22px 24px;
+    box-shadow: 0 2px 12px rgba(30,40,100,.07); }
+  .sp-dz-title { font-size: 14px; font-weight: 800; color: #1b2550; margin-bottom: 14px; }
+  .sp-dz-canvas-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
+  .sp-dz-canvas-wrap canvas { width: 150px !important; height: 150px !important; }
+  .sp-dz-leg-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600;
+    color: #3a4256; margin-bottom: 7px; }
+  .sp-dz-leg-item:last-child { margin-bottom: 0; }
+  .sp-dz-leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .sp-dz-leg-val { margin-left: auto; font-weight: 800; color: #1b2550; }
+
+  /* Students table */
+  .sp-tbl-card { background: #fff; border-radius: 20px; padding: 22px 24px;
+    box-shadow: 0 2px 12px rgba(30,40,100,.07); overflow: hidden; }
+  .sp-tbl-title { font-size: 14px; font-weight: 800; color: #1b2550; margin-bottom: 16px; }
+  .sp-tbl { width: 100%; border-collapse: collapse; }
+  .sp-tbl th { text-align: left; font-size: 12px; font-weight: 700; color: #8a94b0;
+    padding: 10px 12px; border-bottom: 2px solid #f0f2f8; white-space: nowrap; }
+  .sp-tbl td { font-size: 13px; font-weight: 600; color: #3a4256; padding: 11px 12px;
+    border-bottom: 1px solid #f7f8fd; }
+  .sp-tbl tr:last-child td { border-bottom: none; }
+  .sp-tbl tr:hover td { background: #f8f9ff; }
+  .sp-badge { display: inline-block; padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; }
+  .sp-badge.hi { background: #e6faf3; color: #12c99b; }
+  .sp-badge.mid { background: #fff8e6; color: #f5a623; }
+  .sp-badge.lo { background: #ffe8e8; color: #ff5a5f; }
+
+  /* Collapsed sidebar */
+  .sidebar.collapsed { width: 72px; padding: 26px 8px 22px; }
+  .sidebar.collapsed .sb-brand { padding: 4px 4px 26px; justify-content: center; }
+  .sidebar.collapsed .sb-brand .ai,
+  .sidebar.collapsed .sb-brand .bek { display: none; }
+  .sidebar.collapsed .sb-brand::after { content: 'AB'; font-size: 18px; font-weight: 900; color: #fff; }
+  .sidebar.collapsed .sb-link { padding: 12px; justify-content: center; gap: 0; }
+  .sidebar.collapsed .sb-link span { display: none; }
+  .sidebar.collapsed .sb-mascot { width: 52px; opacity: .7; }
+  .sidebar.collapsed .sb-logout { margin: 0 auto; }
+  .sb-toggle { position: absolute; top: 26px; right: 16px; width: 26px; height: 26px; border-radius: 8px;
+    border: none; background: rgba(255,255,255,.18); cursor: pointer; color: #fff;
+    display: flex; align-items: center; justify-content: center; transition: background .15s; z-index: 2; }
+  .sb-toggle:hover { background: rgba(255,255,255,.3); }
+  .sb-toggle svg { width: 14px; height: 14px; transition: transform .3s; }
+  .sidebar.collapsed .sb-toggle { right: auto; left: 50%; transform: translateX(-50%); }
+  .sidebar.collapsed .sb-toggle svg { transform: rotate(180deg); }
+
+  @media (max-width: 980px) {
+    .sidebar { width: 84px; padding: 22px 12px; }
+    .sb-brand { font-size: 0; padding: 4px 0 22px; justify-content: center; }
+    .sb-link span { display: none; }
+    .sb-link { justify-content: center; padding: 13px 0; }
+    .sb-foot { display: none; }
+    .main { border-top-left-radius: 30px; padding: 20px 18px 32px; }
+  }
+  @media (max-width: 760px) {
+    .sp-top-row { flex-direction: column; }
+    .sp-score-card { flex: unset; width: 100%; }
+    .sp-stats-row { grid-template-columns: 1fr; }
+    .sp-mid-row { flex-direction: column; }
+    .sp-dz-card { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sb-toggle" id="sbToggle" title="Свернуть меню">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="sb-brand"><span class="ai">AI-</span><span class="bek">BEK</span></div>
+    <nav class="sb-nav">
+      <a href="index.html" class="sb-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-4H4zM14 8h6V4h-6z" stroke-linejoin="round"/></svg>
+        <span>Дашборд</span>
+      </a>
+      <a href="teacher.html" class="sb-link active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        <span>Предметы</span>
+      </a>
+      <a class="sb-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 6.2a3 3 0 0 1 0 5.6M18.5 20a4.8 4.8 0 0 0-3-4.4" stroke-linecap="round"/></svg>
+        <span>Пользователи</span>
+      </a>
+      <a class="sb-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-2 9-2 9h16s-2-2-2-9M10.5 21a2 2 0 0 0 3 0" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Уведомления</span>
+      </a>
+    </nav>
+    <div class="sb-foot">
+      <img class="sb-mascot" src="./robot.png" alt="AI-BEK" onerror="this.style.display='none'">
+      <button class="sb-logout" title="Выйти">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5M20 12H9M11 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="lang-switch"><button class="lang-btn active" onclick="setLang('uz')">UZ</button><button class="lang-btn" onclick="setLang('ru')">RU</button><button class="lang-btn" onclick="setLang('en')">EN</button></div>
+      <span class="tb-sep"></span>
+      <div class="tb-user">
+        <span class="tb-avatar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <b>Test Admin</b>
+      </div>
+    </div>
+
+    <!-- Back link -->
+    <a href="teacher.html" class="subj-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      К предметам
+    </a>
+
+    <!-- Subject header -->
+    <div class="subj-page-head">
+      <div class="subj-page-ico" id="subjPageIco" style="background:#3b5bff">
+        <svg id="subjPageIcoSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/>
+          <line x1="4" y1="6" x2="4.01" y2="6"/><line x1="4" y1="12" x2="4.01" y2="12"/><line x1="4" y1="18" x2="4.01" y2="18"/>
+        </svg>
+      </div>
+      <div class="subj-page-name" id="subjPageName">Математика</div>
+    </div>
+
+    <!-- Filters -->
+    <div class="sp-filters uni-filter">
+      <div class="uf-group">
+        <span class="uf-lbl">От</span>
+        <input type="date" class="uf-ctrl" id="spFilterFrom" value="2025-12-17">
+      </div>
+      <div class="uf-group">
+        <span class="uf-lbl">До</span>
+        <input type="date" class="uf-ctrl" id="spFilterTo" value="2026-06-15">
+      </div>
+      <div class="uf-sep"></div>
+      <div class="uf-group">
+        <span class="uf-lbl">Класс</span>
+        <select class="uf-ctrl uf-sel" id="spFilterClass">
+          <option value="">Все классы</option>
+          <option value="8А">8А</option>
+          <option value="8Б">8Б</option>
+          <option value="9А">9А</option>
+          <option value="9Б">9Б</option>
+        </select>
+      </div>
+      <div class="uf-group">
+        <span class="uf-lbl">Группа</span>
+        <select class="uf-ctrl uf-sel" id="spFilterGroup">
+          <option value="">Все группы</option>
+          <option value="Группа 1">Группа 1</option>
+          <option value="Группа 2">Группа 2</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Top row: score ring + subject comparison -->
+    <div class="sp-top-row">
+      <div class="sp-score-card">
+        <div class="sp-ring-wrap">
+          <svg class="sp-ring" viewBox="0 0 120 120">
+            <circle class="sp-ring-bg" cx="60" cy="60" r="50"/>
+            <circle class="sp-ring-fg" id="subjRingFg" cx="60" cy="60" r="50"/>
+          </svg>
+          <div class="sp-ring-overlay">
+            <div class="sp-score-big" id="subjScoreBig">74</div>
+            <div class="sp-score-max">/100</div>
+          </div>
+        </div>
+        <div class="sp-score-lbl">Средний балл по предмету</div>
+      </div>
+      <div class="sp-compare-card">
+        <div class="sp-compare-title">Сравнение с другими предметами</div>
+        <div id="subjCompareList"></div>
+      </div>
+    </div>
+
+    <!-- Stats row: DZ avg + topics % + tests % -->
+    <div class="sp-stats-row">
+      <div class="sp-stat">
+        <div class="sp-stat-ico" id="subjIco1" style="background:#3b5bff">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <div class="sp-stat-num" id="subjHwAvg">67</div>
+        <div class="sp-hw-badge mid" id="subjHwBadge">Средний</div>
+        <div class="sp-stat-lbl">Средняя оценка за ДЗ</div>
+      </div>
+      <div class="sp-stat">
+        <div class="sp-stat-ico" id="subjIco2" style="background:#12c99b">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <div class="sp-stat-num" id="subjTopicsPct">84%</div>
+        <div class="sp-stat-lbl">Тем пройдено</div>
+      </div>
+      <div class="sp-stat">
+        <div class="sp-stat-ico" id="subjIco3" style="background:#f5a623">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div class="sp-stat-num" id="subjTestsPct">71%</div>
+        <div class="sp-stat-lbl">Тестов выполнено</div>
+      </div>
+    </div>
+
+    <!-- Two-column: dynamics chart (full width row) -->
+    <div class="sp-dynamics">
+      <div class="sp-dynamics-title">Динамика успеваемости</div>
+      <canvas id="cSubjDynamic" style="max-height:200px"></canvas>
+    </div>
+
+    <!-- Problem topics + DZ donut -->
+    <div class="sp-mid-row">
+      <div class="sp-prob-card">
+        <div class="sp-prob-title">Проблемные темы</div>
+        <div id="subjProbList"></div>
+      </div>
+      <div class="sp-dz-card">
+        <div class="sp-dz-title">Результаты ДЗ</div>
+        <div class="sp-dz-canvas-wrap"><canvas id="cSubjDZ"></canvas></div>
+        <div id="subjDzLegend"></div>
+      </div>
+      <div class="sp-dz-card">
+        <div class="sp-dz-title">Статусы выполнения</div>
+        <div class="sp-dz-canvas-wrap"><canvas id="cSubjStatus"></canvas></div>
+        <div id="subjStatusLegend"></div>
+      </div>
+    </div>
+
+    <!-- Students table -->
+    <div class="sp-tbl-card">
+      <div class="sp-tbl-title">Ученики</div>
+      <div style="overflow-x:auto">
+        <table class="sp-tbl">
+          <thead>
+            <tr>
+              <th>#</th><th>Имя</th><th>Фамилия</th><th>Пол</th>
+              <th>Класс</th><th>Группа</th><th>Ср. результат по ДЗ</th><th>Самая слабая тема</th>
+            </tr>
+          </thead>
+          <tbody id="subjStudentsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  /* ---- Read URL param ---- */
+  const key = new URLSearchParams(location.search).get('subj') || 'math';
+
+  /* ---- Read filter state from localStorage ---- */
+  const savedClass = localStorage.getItem('aibek_filterClass') || '';
+  const savedGroup = localStorage.getItem('aibek_filterGroup') || '';
+  const savedFrom  = localStorage.getItem('aibek_filterFrom')  || '2025-12-17';
+  const savedTo    = localStorage.getItem('aibek_filterTo')    || '2026-06-15';
+
+  /* ---- Pre-fill filter inputs ---- */
+  document.getElementById('spFilterFrom').value  = savedFrom;
+  document.getElementById('spFilterTo').value    = savedTo;
+  document.getElementById('spFilterClass').value = savedClass;
+  document.getElementById('spFilterGroup').value = savedGroup;
+
+  /* ---- Persist filter changes to localStorage ---- */
+  document.getElementById('spFilterFrom').addEventListener('change', function () {
+    localStorage.setItem('aibek_filterFrom', this.value);
+  });
+  document.getElementById('spFilterTo').addEventListener('change', function () {
+    localStorage.setItem('aibek_filterTo', this.value);
+  });
+  document.getElementById('spFilterClass').addEventListener('change', function () {
+    localStorage.setItem('aibek_filterClass', this.value);
+    renderStudentsTable(this.value, document.getElementById('spFilterGroup').value);
+  });
+  document.getElementById('spFilterGroup').addEventListener('change', function () {
+    localStorage.setItem('aibek_filterGroup', this.value);
+    renderStudentsTable(document.getElementById('spFilterClass').value, this.value);
+  });
+
+  /* ---- Sidebar toggle ---- */
+  const sidebar = document.getElementById('sidebar');
+  const sbToggle = document.getElementById('sbToggle');
+  if (sbToggle) {
+    sbToggle.addEventListener('click', () => sidebar.classList.toggle('collapsed'));
+  }
+
+  /* ---- Initialize subject page ---- */
+  const d = SUBJ_DATA[key];
+  if (!d) {
+    document.title = 'AI-BEK · Предмет';
+    return;
+  }
+
+  document.title = 'AI-BEK · ' + d.name;
+
+  /* Header icon + name */
+  document.getElementById('subjPageIco').style.background = d.color;
+  document.getElementById('subjPageIco').innerHTML =
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d.icon}</svg>`;
+  document.getElementById('subjPageName').textContent = d.name;
+
+  /* Score ring */
+  const circumference = 2 * Math.PI * 50;
+  const offset = circumference * (1 - d.avg / 100);
+  const ring = document.getElementById('subjRingFg');
+  ring.style.stroke = d.color;
+  ring.style.strokeDasharray = circumference;
+  ring.style.strokeDashoffset = offset;
+  document.getElementById('subjScoreBig').textContent = d.avg;
+
+  /* Stat card icons + values */
+  ['subjIco1', 'subjIco2', 'subjIco3'].forEach(id =>
+    document.getElementById(id).style.background = d.color);
+  document.getElementById('subjHwAvg').textContent     = d.hw;
+  document.getElementById('subjTopicsPct').textContent = d.topics + '%';
+  document.getElementById('subjTestsPct').textContent  = d.tests  + '%';
+
+  /* HW badge */
+  const hwBadge = document.getElementById('subjHwBadge');
+  const hwCls = d.hw >= 80 ? 'hi' : d.hw >= 60 ? 'mid' : 'lo';
+  const hwLbl = d.hw >= 80 ? 'Хороший' : d.hw >= 60 ? 'Средний' : 'Требует внимания';
+  hwBadge.textContent = hwLbl;
+  hwBadge.className   = `sp-hw-badge ${hwCls}`;
+
+  /* Subject comparison list */
+  const compareEl = document.getElementById('subjCompareList');
+  compareEl.innerHTML = Object.entries(SUBJ_DATA).map(([k, s]) => `
+    <div class="sp-c-item${k === key ? ' cur' : ''}">
+      <span class="sp-c-dot" style="background:${s.color}"></span>
+      <span class="sp-c-name">${s.name}</span>
+      <div class="sp-c-bar-bg">
+        <div class="sp-c-bar" style="width:${s.avg}%;background:${k === key ? s.color : '#c5cae9'}"></div>
+      </div>
+      <span class="sp-c-val">${s.avg}</span>
+    </div>`).join('');
+
+  /* Problem topics (expandable) */
+  const probEl = document.getElementById('subjProbList');
+  const chevSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
+  probEl.innerHTML = (PROBLEMS[key] || []).map((p, i) => {
+    const stus  = (PROB_STUDENTS[key] || {})[p.n] || [];
+    const chips = stus.map(s => `<span class="sp-stu-chip lo">${s}</span>`).join('');
+    return `
+    <div class="sp-prob-group" data-idx="${i}">
+      <div class="sp-prob-item">
+        <span class="sp-prob-num">${i + 1}</span>
+        <span class="sp-prob-name">${p.n}</span>
+        <div class="sp-prob-bar-bg"><div class="sp-prob-bar" style="width:${p.p}%"></div></div>
+        <span class="sp-prob-pct">${p.p}%</span>
+        <span class="sp-prob-chev">${chevSvg}</span>
+      </div>
+      <div class="sp-prob-expand">
+        <div class="sp-prob-stu-lbl">Ученики с трудностями:</div>
+        <div class="sp-prob-stu-row">${chips || '<span style="color:#8a94b0;font-size:12px">Нет данных</span>'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  /* Expandable click handler */
+  probEl.addEventListener('click', function (e) {
+    const item = e.target.closest('.sp-prob-item');
+    if (!item) return;
+    item.closest('.sp-prob-group').classList.toggle('open');
+  });
+
+  /* DZ legend */
+  document.getElementById('subjDzLegend').innerHTML = DZ_LABELS.map((lbl, i) => `
+    <div class="sp-dz-leg-item">
+      <span class="sp-dz-leg-dot" style="background:${DZ_COLORS[i]}"></span>
+      <span>${lbl}</span>
+      <span class="sp-dz-leg-val">${DZ_DIST[key][i]}%</span>
+    </div>`).join('');
+
+  /* Status legend */
+  document.getElementById('subjStatusLegend').innerHTML = STATUS_LABELS.map((lbl, i) => `
+    <div class="sp-dz-leg-item">
+      <span class="sp-dz-leg-dot" style="background:${STATUS_COLORS[i]}"></span>
+      <span>${lbl}</span>
+      <span class="sp-dz-leg-val">${STATUS_DIST[key][i]}%</span>
+    </div>`).join('');
+
+  /* Students table */
+  function renderStudentsTable(cls, grp) {
+    const filtered = STUDENTS.filter(s =>
+      (!cls || s.cls === cls) && (!grp || s.grp === grp));
+    document.getElementById('subjStudentsTbody').innerHTML = filtered.length
+      ? filtered.map((s, i) => {
+          const badge     = s.sc >= 80 ? 'hi' : s.sc >= 60 ? 'mid' : 'lo';
+          const weakTopic = (s.weak && s.weak[key]) ? s.weak[key] : '—';
+          return `<tr>
+            <td>${i + 1}</td>
+            <td>${s.f}</td>
+            <td>${s.l}</td>
+            <td>${s.g}</td>
+            <td>${s.cls}</td>
+            <td>${s.grp}</td>
+            <td><span class="sp-badge ${badge}">${s.sc}</span></td>
+            <td style="color:#ff5a5f;font-weight:600;font-size:12.5px">${weakTopic}</td>
+          </tr>`;
+        }).join('')
+      : `<tr><td colspan="8" style="text-align:center;color:#8a94b0;padding:24px">Нет учеников по выбранным фильтрам</td></tr>`;
+  }
+
+  /* Initial render with saved filters */
+  renderStudentsTable(savedClass, savedGroup);
+
+  /* ---- Charts (initialize after DOM is ready) ---- */
+  requestAnimationFrame(() => {
+    /* Dynamics line chart */
+    const dynCtx = document.getElementById('cSubjDynamic').getContext('2d');
+    new Chart(dynCtx, {
+      type: 'line',
+      data: {
+        labels: MONTHS,
+        datasets: [{
+          label: 'Средний балл',
+          data: DYNAMICS[key],
+          borderColor: d.color,
+          backgroundColor: d.color + '22',
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: d.color
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: '#1b2550',
+            titleColor: '#b0b8d0',
+            titleFont: { size: 11 },
+            bodyColor: '#fff',
+            bodyFont: { size: 13, weight: '700' },
+            padding: 12,
+            cornerRadius: 10,
+            callbacks: { label: ctx => ` Балл: ${ctx.parsed.y}` }
+          }
+        },
+        scales: {
+          y: {
+            min: 40, max: 100,
+            grid: { color: '#f0f2f8' },
+            ticks: { color: '#8a94b0', font: { size: 11 } }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#8a94b0', font: { size: 11 } }
+          }
+        }
+      }
+    });
+
+    /* DZ donut chart */
+    const dzCtx = document.getElementById('cSubjDZ').getContext('2d');
+    new Chart(dzCtx, {
+      type: 'doughnut',
+      data: {
+        labels: DZ_LABELS,
+        datasets: [{
+          data: DZ_DIST[key],
+          backgroundColor: DZ_COLORS,
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: false,
+        cutout: '70%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}%` }
+          }
+        }
+      }
+    });
+
+    /* Status pie chart */
+    const statusCtx = document.getElementById('cSubjStatus').getContext('2d');
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: STATUS_LABELS,
+        datasets: [{
+          data: STATUS_DIST[key],
+          backgroundColor: STATUS_COLORS,
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: false,
+        cutout: '70%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}%` }
+          }
+        }
+      }
+    });
+  });
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+</body>
+</html>
