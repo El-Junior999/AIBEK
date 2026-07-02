@@ -287,6 +287,26 @@
       </div>
     </div>
 
+    <!-- Date Range Filter -->
+    <div style="background:#fff;border-radius:16px;padding:14px 20px;border:1px solid #eef1f6;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:700;color:#8a94b0;white-space:nowrap;">Период:</span>
+      <label style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:#8a94b0;font-weight:600;">От</span>
+        <input type="date" id="dateFrom" onchange="applyDateFilter()" style="padding:6px 12px;border:1.5px solid #e0e4f0;border-radius:10px;font-size:13px;font-weight:600;color:#1b2550;background:#f7f8fc;outline:none;cursor:pointer;">
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:#8a94b0;font-weight:600;">До</span>
+        <input type="date" id="dateTo" onchange="applyDateFilter()" style="padding:6px 12px;border:1.5px solid #e0e4f0;border-radius:10px;font-size:13px;font-weight:600;color:#1b2550;background:#f7f8fc;outline:none;cursor:pointer;">
+      </label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="setDatePreset('month')" style="padding:6px 13px;background:#f0f2f8;color:#3a4256;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Этот месяц</button>
+        <button onclick="setDatePreset('quarter')" style="padding:6px 13px;background:#f0f2f8;color:#3a4256;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Квартал</button>
+        <button onclick="setDatePreset('year')" style="padding:6px 13px;background:#f0f2f8;color:#3a4256;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Уч. год</button>
+        <button onclick="resetDateFilter()" style="padding:6px 13px;background:#fff0f0;color:#ff5a5f;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Сбросить</button>
+      </div>
+      <span id="dateFilterLabel" style="font-size:12px;color:#3b5bff;font-weight:700;margin-left:auto;"></span>
+    </div>
+
     <!-- 3 stat-карточки -->
     <div class="stat-grid">
       <!-- Ученики -->
@@ -701,6 +721,49 @@ function getScopeMetrics(scope){
   if(scope.type==='grade') return GRADE_METRICS[scope.val]||{avgDz:75,subj:SCH_SUBJ,dz:SCH_DZ,dyn:SCH_DYN};
   return {avgDz:75,subj:SCH_SUBJ,dz:SCH_DZ,dyn:SCH_DYN};
 }
+
+/* ===== DATE FILTER ===== */
+var DATE_FILTER = {from:null, to:null};
+function applyDateFilter(){
+  DATE_FILTER.from = document.getElementById('dateFrom').value || null;
+  DATE_FILTER.to = document.getElementById('dateTo').value || null;
+  var lbl = document.getElementById('dateFilterLabel');
+  if(lbl){
+    var parts = [];
+    if(DATE_FILTER.from) parts.push('с '+DATE_FILTER.from.split('-').reverse().join('.'));
+    if(DATE_FILTER.to) parts.push('по '+DATE_FILTER.to.split('-').reverse().join('.'));
+    lbl.textContent = parts.length ? parts.join(' ') : '';
+  }
+}
+function setDatePreset(p){
+  var now = new Date(), from, to;
+  if(p==='month'){
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  } else if(p==='quarter'){
+    var q = Math.floor(now.getMonth()/3);
+    from = new Date(now.getFullYear(), q*3, 1);
+    to = new Date(now.getFullYear(), q*3+3, 0);
+  } else {
+    var yr = now.getMonth()>=8 ? now.getFullYear() : now.getFullYear()-1;
+    from = new Date(yr, 8, 1);
+    to = new Date(yr+1, 5, 30);
+  }
+  function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  document.getElementById('dateFrom').value = fmt(from);
+  document.getElementById('dateTo').value = fmt(to);
+  applyDateFilter();
+}
+function resetDateFilter(){
+  DATE_FILTER.from = null; DATE_FILTER.to = null;
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  var lbl = document.getElementById('dateFilterLabel');
+  if(lbl) lbl.textContent = '';
+}
+window.applyDateFilter = applyDateFilter;
+window.setDatePreset = setDatePreset;
+window.resetDateFilter = resetDateFilter;
 
 function refreshAll(){
   renderChartClasses();
