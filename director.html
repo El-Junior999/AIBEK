@@ -786,11 +786,11 @@ function renderClasses(){
   var worst=sorted.slice(-10).reverse();
 
   function row(r,rank,isBest){
-    var medal=rank===1?(isBest?'🥇':'🔴'):rank===2?(isBest?'🥈':'🟠'):rank===3?(isBest?'🥉':'🟡'):'';
+    var rankColor=rank===1?'#d4a017':rank===2?'#9ea8b8':rank===3?'#cd7f32':'#c0c6d4';
     var scoreColor=r.dz>=80?'#12c99b':r.dz>=65?'#f5a623':'#ff5a5f';
     var trend=r.trend===1?'<span style="color:#12c99b;font-size:11px;">↑</span>':r.trend===-1?'<span style="color:#ff5a5f;font-size:11px;">↓</span>':'<span style="color:#8899bb;font-size:11px;">→</span>';
     return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f2fa;">'
-      +'<div style="width:22px;text-align:center;font-size:13px;font-weight:800;color:#8899bb;">'+(medal||rank)+'</div>'
+      +'<div style="width:22px;text-align:center;font-size:14px;font-weight:800;color:'+rankColor+';">'+rank+'</div>'
       +'<div style="flex:1;min-width:0;">'
         +'<div style="font-size:13px;font-weight:700;color:#1b2550;">'+r.cls+' '+trend+'</div>'
         +'<div style="font-size:11px;color:#8899bb;">'+r.n+' уч. · Слабое: '+r.weak+'</div>'
@@ -836,11 +836,11 @@ function renderTeachers(){
   var worst=list.slice(-10).reverse();
 
   function row(t,rank,isBest){
-    var medal=rank===1?(isBest?'🥇':'🔴'):rank===2?(isBest?'🥈':'🟠'):rank===3?(isBest?'🥉':'🟡'):'';
+    var rankColor=rank===1?'#d4a017':rank===2?'#9ea8b8':rank===3?'#cd7f32':'#c0c6d4';
     var scoreColor=t.avgDz>=80?'#12c99b':t.avgDz>=65?'#f5a623':'#ff5a5f';
     var cls=t.filtClasses.map(function(c){return c.cls;}).join(', ');
     return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f2fa;">'
-      +'<div style="width:22px;text-align:center;font-size:13px;font-weight:800;color:#8899bb;">'+(medal||rank)+'</div>'
+      +'<div style="width:22px;text-align:center;font-size:14px;font-weight:800;color:'+rankColor+';">'+rank+'</div>'
       +'<div style="flex:1;min-width:0;">'
         +'<div style="font-size:13px;font-weight:700;color:#1b2550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.name+'</div>'
         +'<div style="font-size:11px;color:#8899bb;">'+t.subj+' · '+cls+'</div>'
