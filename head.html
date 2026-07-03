@@ -872,7 +872,7 @@ function renderChartRegions(){
       plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' Ср. балл: '+ctx.parsed.y;}}}},
       scales:{
         y:{min:50,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},
-        x:{grid:{display:false},ticks:{color:'#3a4256',font:{size:11,weight:'600'},maxRotation:45}}
+        x:{grid:{display:false},ticks:{color:'#3a4256',font:{size:11,weight:'600'},maxRotation:0,minRotation:0}}
       }
     }
   });
@@ -949,7 +949,7 @@ function renderChartDistricts(){
       plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' Ср. балл: '+ctx.parsed.y;}}}},
       scales:{
         y:{min:50,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},
-        x:{grid:{display:false},ticks:{color:'#3a4256',font:{size:isAll?10:11,weight:'600'},maxRotation:45}}
+        x:{grid:{display:false},ticks:{color:'#3a4256',font:{size:isAll?10:11,weight:'600'},maxRotation:0,minRotation:0}}
       }
     }
   });
@@ -1033,7 +1033,7 @@ function renderChartSchools(){
     options:{
       responsive:!isMany, maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' Ср. балл: '+ctx.parsed.y;}}}},
-      scales:{y:{min:40,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#8a94b0',font:{size:11},maxRotation:40}}},
+      scales:{y:{min:40,max:100,grid:{color:'#f0f2f8'},ticks:{color:'#8a94b0',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#8a94b0',font:{size:11},maxRotation:0,minRotation:0}}},
       onClick:function(e,els){
         if(els.length){ toggleSchool(els[0].index); }
       }

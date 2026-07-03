@@ -1596,6 +1596,24 @@
     <div class="sl-list" id="schoolList"></div>
   </div>
 
+  <!-- Финансы: дрилл-даун по регионам — доходы и активные пользователи -->
+  <div class="card span3" data-card="finregion">
+    <div class="card-head">
+      <div>
+        <h3>Финансовая аналитика</h3>
+        <div class="sub" id="finRegionSub">Доходы и активные пользователи по регионам · нажмите на бар для детализации</div>
+      </div>
+      <div class="head-right" style="gap:10px;">
+        <div id="finDrillCrumbs" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></div>
+        <div class="chart-legend" style="margin:0;">
+          <span><i style="background:#3b5bff;border-radius:3px;"></i>Доходы (млн UZS)</span>
+          <span><i style="background:#12c99b;border-radius:3px;"></i>Активных польз.</span>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:320px;"><canvas id="cFinRegion"></canvas></div>
+  </div>
+
   <!-- 15. Продажи по способам оплаты -->
   <div class="card" data-card="payments">
     <div class="card-head">
@@ -1968,7 +1986,7 @@ const chTopics=new Chart(document.getElementById('cTopics'),{type:'bar',
       title:i=>i[0].label,
       label:i=>' Попыток в среднем: '+i.parsed.y.toFixed(1),
       afterLabel:i=>' Сложность: '+(i.parsed.y>=4?'высокая':i.parsed.y>=3?'средняя':'умеренная')}}},
-    scales:{x:{...axX,ticks:{...axX.ticks,maxRotation:18,minRotation:0,font:{weight:'600',size:11.5}}},
+    scales:{x:{...axX,ticks:{...axX.ticks,maxRotation:0,minRotation:0,minRotation:0,font:{weight:'600',size:11.5}}},
       y:{...axY(v=>v),title:{display:true,text:'попыток',color:C.muted,font:{weight:'600'}}}}},
   plugins:[barTops]});
 
@@ -2030,6 +2048,98 @@ const chAppUsage=new Chart(document.getElementById('cAppUsage'),{type:'bar',
     plugins:{tooltip:{...tooltip,callbacks:{title:i=>i[0].label,label:i=>' '+i.parsed.y.toLocaleString('ru-RU')+' активных сессий'}}},
     scales:{x:{...axX,ticks:{...axX.ticks,maxRotation:0,autoSkip:false}},
       y:{...axY(v=>v),suggestedMax:10,ticks:{...axY(v=>v).ticks,stepSize:2}}}}});
+
+/* ============ ФИНАНСЫ: ДРИЛЛ-ДАУН ПО РЕГИОНАМ ============ */
+var FIN_DRILL={level:'region',region:null,district:null};
+var FIN_DATE={a:null,b:null};
+
+function finData(level,reg,dist,a,b){
+  var days=a&&b?Math.round((b-a)/DAY)+1:180;
+  var items=level==='region'?Object.keys(REGIONS):level==='district'?(REGIONS[reg]||[]):schoolsOf(reg,dist);
+  return items.map(function(name){
+    var seed='fin|'+level+'|'+(reg||'')+'|'+(dist||'')+'|'+name;
+    var r=mulberry32(hash(seed));
+    var base=level==='region'?12:level==='district'?3:0.7;
+    var rev=+(base*(0.5+r())*days/180*10).toFixed(2);
+    var usr=Math.round((level==='region'?3200:level==='district'?800:180)*(0.4+r()));
+    return{name:name,rev:rev,usr:usr};
+  });
+}
+
+function finCrumbs(){
+  var el=document.getElementById('finDrillCrumbs'); if(!el) return;
+  var chip=function(label,level,reg,dist,active){
+    return '<button onclick="finGo(\''+level+'\','+JSON.stringify(reg)+','+JSON.stringify(dist)+')" '
+      +'style="padding:4px 13px;border-radius:20px;border:none;font-size:12px;font-weight:700;cursor:pointer;'
+      +'background:'+(active?'#3b5bff':'#f0f2f8')+';color:'+(active?'#fff':'#3a4256')+';">'+label+'</button>';
+  };
+  var svg='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c0c6d4" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>';
+  var parts=[chip('Все регионы','region',null,null,FIN_DRILL.level==='region')];
+  if(FIN_DRILL.region){
+    parts.push(svg);
+    parts.push(chip(FIN_DRILL.region,'district',FIN_DRILL.region,null,FIN_DRILL.level==='district'));
+  }
+  if(FIN_DRILL.district){
+    parts.push(svg);
+    parts.push(chip(FIN_DRILL.district,'school',FIN_DRILL.region,FIN_DRILL.district,true));
+  }
+  el.innerHTML=parts.join('');
+}
+
+function finGo(level,region,district){
+  FIN_DRILL.level=level; FIN_DRILL.region=region; FIN_DRILL.district=district;
+  finRender();
+}
+window.finGo=finGo;
+
+function finRender(){
+  var rows=finData(FIN_DRILL.level,FIN_DRILL.region,FIN_DRILL.district,FIN_DATE.a,FIN_DATE.b);
+  chFinRegion.data.labels=rows.map(function(r){return r.name;});
+  chFinRegion.data.datasets[0].data=rows.map(function(r){return r.rev;});
+  chFinRegion.data.datasets[1].data=rows.map(function(r){return r.usr;});
+  chFinRegion.update();
+  var lvl=FIN_DRILL.level==='region'?'регионам':FIN_DRILL.level==='district'?'районам':'школам';
+  var ctx=(FIN_DRILL.region?' · '+FIN_DRILL.region:'')+(FIN_DRILL.district?' · '+FIN_DRILL.district:'');
+  var sub=document.getElementById('finRegionSub');
+  if(sub) sub.textContent='Доходы и активные пользователи по '+lvl+ctx+' · нажмите на бар для детализации';
+  finCrumbs();
+}
+
+var finClick=function(evt,els){
+  if(!els.length) return;
+  var label=chFinRegion.data.labels[els[0].index];
+  if(FIN_DRILL.level==='region'&&REGIONS[label]) finGo('district',label,null);
+  else if(FIN_DRILL.level==='district') finGo('school',FIN_DRILL.region,label);
+};
+
+const chFinRegion=new Chart(document.getElementById('cFinRegion'),{
+  type:'bar',
+  data:{labels:[],datasets:[
+    {label:'Доходы (млн UZS)',data:[],backgroundColor:'#3b5bff',borderRadius:8,borderSkipped:false,
+     maxBarThickness:44,categoryPercentage:.72,barPercentage:.78,yAxisID:'yR'},
+    {label:'Активных польз.',data:[],backgroundColor:'#12c99b',borderRadius:8,borderSkipped:false,
+     maxBarThickness:44,categoryPercentage:.72,barPercentage:.78,yAxisID:'yU'}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},
+    onClick:finClick,
+    cursor:'pointer',
+    plugins:{legend:{display:false},tooltip:{...tooltip,callbacks:{
+      title:function(i){return i[0].label;},
+      label:function(i){return i.datasetIndex===0?' Доходы: '+i.parsed.y.toFixed(1)+' млн UZS':' Активных: '+i.parsed.y.toLocaleString('ru-RU')+' польз.';}
+    }}},
+    scales:{
+      x:{grid:{display:false},border:{display:false},
+         ticks:{color:'#3a4256',font:{size:11,weight:'600'},maxRotation:0,minRotation:0,autoSkip:false}},
+      yR:{position:'left',grid:{color:'#f0f2f8'},border:{display:false},
+          ticks:{color:'#3b5bff',font:{size:11,weight:'600'},callback:function(v){return v+'M';}},
+          title:{display:true,text:'млн UZS',color:'#3b5bff',font:{weight:'700',size:11}}},
+      yU:{position:'right',grid:{display:false},border:{display:false},
+          ticks:{color:'#12c99b',font:{size:11,weight:'600'},callback:function(v){return v>=1000?(v/1000).toFixed(0)+'k':v;}},
+          title:{display:true,text:'польз.',color:'#12c99b',font:{weight:'700',size:11}}}
+    }
+  }
+});
+document.getElementById('cFinRegion').style.cursor='pointer';
 
 /* ============ ИНИЦИАЛИЗАЦИЯ НОВЫХ ВИДЖЕТОВ ============ */
 // тепловая карта: построение каркаса, цвет, подсказки (значения считает updaters.heat)
@@ -2495,6 +2605,7 @@ const updaters={
     chStudentsMonth.data.datasets[1].data=boys.map(v=>Math.round(v*f*jf));
     chStudentsMonth.update();
   },
+  finregion(a,b){FIN_DATE.a=a;FIN_DATE.b=b;finRender();},
   subsales(a,b){ // эталонный график (реагирует на общий фильтр)
     const sc=readScope(CURRENT_FILTER);const days=Math.round((b-a)/DAY)+1;
     const f=(sc.region?0.5:1)*(sc.dist?0.6:1)*(sc.school?0.55:1);
@@ -2531,7 +2642,7 @@ document.querySelectorAll('.tabfilter .filter-bar').forEach(bar=>{
     activity:'edu',streak:'edu',funnel:'edu',prog:'edu',
     leaderboard:'edu',help:'edu',subjreq:'edu',topics:'edu',schoolrank:'edu',
     // Финансы: внутренняя экономика, Bekcoin, платежи, подписки
-    subsales:'fin',economy:'fin',payments:'fin',paymonth:'fin',paystatus:'fin',
+    finregion:'fin',subsales:'fin',economy:'fin',payments:'fin',paymonth:'fin',paystatus:'fin',
     // Маркет: магазин, покупки, товары
     orders:'market',products:'market',
     // Система: добавление пользователей, нагрузка ИИ, активность, использование
