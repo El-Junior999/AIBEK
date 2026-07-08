@@ -1670,11 +1670,49 @@
       </div>
     </div>
 
+  <!-- Финансы: расходы — ввод статей -->
+  <div class="card span3" data-card="expenses">
+    <div class="card-head">
+      <div><h3>Расходы</h3>
+        <div class="sub" id="expensesSub">Добавляйте статьи расходов — они отобразятся в графике платежей</div>
+      </div>
+      <div id="expTotBadge" style="font-size:13px;font-weight:800;color:#ff5a5f;white-space:nowrap;"></div>
+    </div>
+    <!-- Форма ввода -->
+    <div style="display:grid;grid-template-columns:1fr 1.4fr 180px auto;gap:12px;align-items:end;margin-bottom:20px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#8a94b0;margin-bottom:5px;">Название</div>
+        <input id="expName" type="text" placeholder="Аренда офиса…" maxlength="60"
+          style="width:100%;padding:9px 14px;border:1.5px solid #e0e4f0;border-radius:12px;font-size:13px;font-weight:600;color:#1b2550;background:#f7f8fc;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#8a94b0;margin-bottom:5px;">Описание</div>
+        <input id="expDesc" type="text" placeholder="Краткое описание…" maxlength="120"
+          style="width:100%;padding:9px 14px;border:1.5px solid #e0e4f0;border-radius:12px;font-size:13px;font-weight:600;color:#1b2550;background:#f7f8fc;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#8a94b0;margin-bottom:5px;">Стоимость (UZS)</div>
+        <input id="expCost" type="number" min="0" placeholder="0"
+          style="width:100%;padding:9px 14px;border:1.5px solid #e0e4f0;border-radius:12px;font-size:13px;font-weight:600;color:#1b2550;background:#f7f8fc;outline:none;">
+      </div>
+      <button onclick="addExpense()"
+        style="padding:9px 22px;background:#3b5bff;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;align-self:end;">
+        + Добавить
+      </button>
+    </div>
+    <!-- Таблица расходов -->
+    <div id="expList"></div>
+  </div>
+
   <!-- Финансы: нижний ряд 50/50 — платежи по месяцам + баланс экономики -->
   <div class="card-pair" data-domain="fin">
     <div class="card" data-card="paymonth">
       <div class="card-head">
-        <div><h3>Статистика платежей по месяцам</h3></div>
+        <div><h3>Доходы и расходы по месяцам</h3></div>
+      </div>
+      <div class="chart-legend" style="margin-bottom:6px;">
+        <span><i style="background:#3b5bff;border-radius:3px;"></i>Доходы</span>
+        <span><i style="background:#ff5a5f;border-radius:3px;"></i>Расходы</span>
       </div>
       <div class="chart-wrap"><canvas id="cPayMonth"></canvas></div>
     </div>
@@ -2052,11 +2090,84 @@ const chSubSales=new Chart(document.getElementById('cSubSales'),{type:'doughnut'
 /* ===== Доход от подписок + Использование приложения ===== */
 const BAR_VIOLET='#7c84f0';
 const chPayMonth=new Chart(document.getElementById('cPayMonth'),{type:'bar',
-  data:{labels:MONTHS_RU,datasets:[{data:[],backgroundColor:BAR_VIOLET,borderRadius:8,borderSkipped:false,
-    maxBarThickness:30,categoryPercentage:.62,barPercentage:.72}]},
+  data:{labels:MONTHS_RU,datasets:[
+    {label:'Доходы',data:[],backgroundColor:BAR_VIOLET,borderRadius:8,borderSkipped:false,maxBarThickness:30,categoryPercentage:.62,barPercentage:.72},
+    {label:'Расходы',data:[],backgroundColor:'#ff5a5f',borderRadius:8,borderSkipped:false,maxBarThickness:30,categoryPercentage:.62,barPercentage:.72}
+  ]},
   options:{responsive:true,maintainAspectRatio:false,
-    plugins:{tooltip:{...tooltip,callbacks:{title:i=>i[0].label,label:i=>' '+(i.parsed.y/1e6).toFixed(1)+' млн UZS'}}},
+    plugins:{
+      legend:{display:false},
+      tooltip:{...tooltip,callbacks:{title:i=>i[0].label,label:i=>' '+i.dataset.label+': '+(i.parsed.y/1e6).toFixed(2)+' млн UZS'}}
+    },
     scales:{x:axX,y:axY(mlnFmt)}}});
+
+/* ===== РАСХОДЫ ===== */
+var EXPENSES=JSON.parse(localStorage.getItem('aibek_expenses')||'[]');
+
+function expSave(){localStorage.setItem('aibek_expenses',JSON.stringify(EXPENSES));}
+
+function addExpense(){
+  var name=(document.getElementById('expName').value||'').trim();
+  var desc=(document.getElementById('expDesc').value||'').trim();
+  var cost=parseFloat(document.getElementById('expCost').value)||0;
+  if(!name||cost<=0){alert('Введите название и стоимость.');return;}
+  EXPENSES.push({id:Date.now(),name,desc,cost,month:new Date().getMonth()});
+  expSave();
+  document.getElementById('expName').value='';
+  document.getElementById('expDesc').value='';
+  document.getElementById('expCost').value='';
+  renderExpenses();
+  updateExpensesChart();
+}
+
+function deleteExpense(id){
+  EXPENSES=EXPENSES.filter(e=>e.id!==id);
+  expSave();renderExpenses();updateExpensesChart();
+}
+
+function renderExpenses(){
+  var el=document.getElementById('expList');
+  if(!el)return;
+  var total=EXPENSES.reduce((s,e)=>s+e.cost,0);
+  var badge=document.getElementById('expTotBadge');
+  if(badge)badge.textContent=EXPENSES.length?'Итого: '+total.toLocaleString('ru-RU')+' UZS':'';
+  if(!EXPENSES.length){
+    el.innerHTML='<div style="color:#b0b8d0;font-size:13px;padding:12px 0;">Расходы ещё не добавлены</div>';
+    return;
+  }
+  el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    +'<thead><tr style="border-bottom:2px solid #e8ebf5;">'
+    +'<th style="text-align:left;padding:7px 10px;color:#8a94b0;font-weight:700;">Название</th>'
+    +'<th style="text-align:left;padding:7px 10px;color:#8a94b0;font-weight:700;">Описание</th>'
+    +'<th style="text-align:right;padding:7px 10px;color:#8a94b0;font-weight:700;">Стоимость</th>'
+    +'<th style="text-align:right;padding:7px 10px;color:#8a94b0;font-weight:700;">Месяц</th>'
+    +'<th style="padding:7px 4px;"></th>'
+    +'</tr></thead><tbody>'
+    +EXPENSES.map(e=>`<tr style="border-bottom:1px solid #f0f2f9;">
+      <td style="padding:8px 10px;font-weight:700;color:#1b2550;">${e.name}</td>
+      <td style="padding:8px 10px;color:#5a6688;">${e.desc||'—'}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:700;color:#ff5a5f;">${e.cost.toLocaleString('ru-RU')} UZS</td>
+      <td style="padding:8px 10px;text-align:right;color:#5a6688;">${MONTHS_RU[e.month]||'—'}</td>
+      <td style="padding:8px 4px;text-align:right;">
+        <button onclick="deleteExpense(${e.id})" style="background:none;border:none;color:#ff5a5f;cursor:pointer;font-size:16px;padding:2px 6px;" title="Удалить">✕</button>
+      </td>
+    </tr>`).join('')
+    +'</tbody></table>';
+}
+
+function expByMonth(){
+  var arr=new Array(12).fill(0);
+  EXPENSES.forEach(e=>{if(e.month>=0&&e.month<12)arr[e.month]+=e.cost;});
+  return arr;
+}
+
+function updateExpensesChart(){
+  if(!chPayMonth)return;
+  chPayMonth.data.datasets[1].data=expByMonth();
+  chPayMonth.update();
+}
+
+renderExpenses();
 
 const chPayStatus=new Chart(document.getElementById('cPayStatus'),{type:'doughnut',
   data:{labels:['Активные подписки','Неактивные','Истёкшие'],datasets:[{data:[1,1,1],
@@ -2565,11 +2676,14 @@ const updaters={
     EXPORTS.payments={file:'prodazhi-oplata.csv',head:['Способ оплаты','Сумма, сум','Доля %'],
       rows:rows.map(m=>[m.name,m.sum,Math.round(m.sum/total*100)])};
   },
+  expenses(a,b){renderExpenses();updateExpensesChart();},
   paymonth(a,b){
     const days=Math.round((b-a)/DAY)+1;
     const base=[6.2,7.4,22.6,8.1,11.3,15.7,13.2,9.4,7.1,8.8,6.5,4.2]; // млн UZS по месяцам
     const data=base.map((v,i)=>Math.round(v*1e6*jitter('paym|'+i,days,0.05)));
-    chPayMonth.data.datasets[0].data=data;chPayMonth.update();
+    chPayMonth.data.datasets[0].data=data;
+    chPayMonth.data.datasets[1].data=expByMonth();
+    chPayMonth.update();
     EXPORTS.paymonth={file:'platezhi-po-mesyacam.csv',head:['Месяц','Сумма, UZS'],
       rows:MONTHS_RU.map((m,i)=>[m,data[i]])};
   },
@@ -2705,7 +2819,7 @@ document.querySelectorAll('.tabfilter .filter-bar').forEach(bar=>{
     activity:'edu',streak:'edu',funnel:'edu',prog:'edu',
     leaderboard:'edu',help:'edu',subjreq:'edu',topics:'edu',schoolrank:'edu',
     // Финансы: внутренняя экономика, Bekcoin, платежи, подписки
-    finregion:'fin',findist:'fin',finschool:'fin',subsales:'fin',economy:'fin',payments:'fin',paymonth:'fin',paystatus:'fin',
+    finregion:'fin',findist:'fin',finschool:'fin',subsales:'fin',expenses:'fin',economy:'fin',payments:'fin',paymonth:'fin',paystatus:'fin',
     // Маркет: магазин, покупки, товары
     orders:'market',products:'market',
     // Система: добавление пользователей, нагрузка ИИ, активность, использование
