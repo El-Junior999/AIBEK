@@ -308,7 +308,7 @@
               <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
             </svg>
           </div>
-          <div><div class="stat-num" id="statDZ">—</div><div class="stat-lbl">Успеваемость</div></div>
+          <div><div class="stat-num" id="statDZ">—</div><div class="stat-lbl">Ср. балл успеваемости</div></div>
         </div>
       </div>
       <div class="stat-card">
@@ -1189,7 +1189,7 @@ function renderRatings(){
     titleText='Рейтинг школ';
     bestTitle='Лучшие школы'; worstTitle='Требуют поддержки';
     items=(SCHOOL_DATA[DF.district]||[]).map(function(s,i){
-      return{name:s.name,dz:s.dz,sub:'Успеваемость: '+s.dz,trend:i===0?1:i===1?0:-1};
+      return{name:s.name,dz:s.dz,sub:'Ср. балл успеваемости: '+s.dz,trend:i===0?1:i===1?0:-1};
     });
   } else if(DF.region){
     titleText='Рейтинг районов';
@@ -1296,7 +1296,7 @@ function renderTable(){
       +' <span class="sep">/</span> <span>'+(r?r.name:'Регион')+'</span>';
     document.getElementById('drillTitle').textContent = (r?r.name:'Регион')+' — районы';
     document.getElementById('drillHead').innerHTML =
-      '<tr><th>Район</th><th>Учеников</th><th>Успеваемость</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
+      '<tr><th>Район</th><th>Учеников</th><th>Ср. балл успеваемости</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
     var dists = DISTRICT_DATA[DF.region]||[];
     document.getElementById('drillBody').innerHTML = dists.map(function(d,i){
       var st=dzSt(d.dz);
@@ -1315,7 +1315,7 @@ function renderTable(){
     document.getElementById('headBreadcrumb').innerHTML = '<span>Вся республика</span>';
     document.getElementById('drillTitle').textContent = 'Успеваемость по регионам ('+REGION_DATA.length+')';
     document.getElementById('drillHead').innerHTML =
-      '<tr><th>Регион</th><th>Учеников</th><th>Успеваемость</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
+      '<tr><th>Регион</th><th>Учеников</th><th>Ср. балл успеваемости</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
     document.getElementById('drillBody').innerHTML = REGION_DATA.map(function(r){
       var st=dzSt(r.dz);
       return '<tr onclick="window.location.href=\'nachalnik.html?region='+r.id+'\'" style="cursor:pointer;">'

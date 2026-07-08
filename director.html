@@ -347,7 +347,7 @@
           </div>
           <div>
             <div class="stat-num">71</div>
-            <div class="stat-lbl">Успеваемость</div>
+            <div class="stat-lbl">Ср. балл успеваемости</div>
             <div class="sp-hw-badge mid" style="margin-top:4px">Средний</div>
           </div>
         </div>
@@ -1121,7 +1121,7 @@ function renderTable(){
     // Show all grades
     document.getElementById('drillTitle').textContent='Успеваемость по классам (1–11)';
     document.getElementById('dirBreadcrumb').innerHTML='';
-    document.getElementById('drillHead').innerHTML='<tr><th>Класс</th><th>Учеников</th><th>Успеваемость</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
+    document.getElementById('drillHead').innerHTML='<tr><th>Класс</th><th>Учеников</th><th>Ср. балл успеваемости</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
     document.getElementById('drillBody').innerHTML=GRADE_DATA.map(function(g){
       var st=dzSt(g.dz);var tr=trendIcon(g.trend);
       return '<tr onclick="toggleGrade('+g.grade+');refreshAll()" style="cursor:pointer;">'
@@ -1140,7 +1140,7 @@ function renderTable(){
     document.getElementById('dirBreadcrumb').innerHTML=
       '<a onclick="DF.grade=null;DF.group=null;DF.subject=null;refreshAll()" style="cursor:pointer;color:#3b5bff;">Все классы</a>'
       +' <span style="color:#c0c5d8;">/ </span><span>'+grade+' класс</span>';
-    document.getElementById('drillHead').innerHTML='<tr><th>Группа</th><th>Классный рук.</th><th>Предмет</th><th>Учеников</th><th>Успеваемость</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
+    document.getElementById('drillHead').innerHTML='<tr><th>Группа</th><th>Классный рук.</th><th>Предмет</th><th>Учеников</th><th>Ср. балл успеваемости</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
     document.getElementById('drillBody').innerHTML=rows.map(function(r){
       var st=dzSt(r.dz);var tr=trendIcon(r.trend);
       var initials=r.teacher.split(' ').map(function(w){return w[0];}).join('').slice(0,2);
