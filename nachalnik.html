@@ -293,7 +293,7 @@
               <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
             </svg>
           </div>
-          <div><div class="stat-num" id="statDZ">—</div><div class="stat-lbl">Ср. балл ДЗ</div></div>
+          <div><div class="stat-num" id="statDZ">—</div><div class="stat-lbl">Успеваемость</div></div>
         </div>
       </div>
       <div class="stat-card">
@@ -934,7 +934,7 @@ function renderTable(){
   if(!DF.district){
     document.getElementById('headBreadcrumb').innerHTML='';
     document.getElementById('drillTitle').textContent='Районы региона';
-    document.getElementById('drillHead').innerHTML='<tr><th>Район</th><th>Учеников</th><th>Ср. балл ДЗ</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
+    document.getElementById('drillHead').innerHTML='<tr><th>Район</th><th>Учеников</th><th>Успеваемость</th><th>Статус</th><th>Слабый предмет</th><th>Требуют внимания</th><th>Динамика</th></tr>';
     document.getElementById('drillBody').innerHTML=DISTRICT_DATA.map(function(d){
       var st=dzSt(d.dz);
       return '<tr onclick="window.location.href=\'zav.html?region='+_region+'&district='+DISTRICT_DATA.indexOf(d)+'\'" style="cursor:pointer;">'
@@ -953,7 +953,7 @@ function renderTable(){
       '<a onclick="toggleDistrict(\''+DF.district+'\')" style="cursor:pointer;color:#3b5bff;">Все районы</a>'
       +' <span class="sep">/</span> <span>'+(d?d.name:'')+'</span>';
     document.getElementById('drillTitle').textContent=(d?d.name:'')+' — школы';
-    document.getElementById('drillHead').innerHTML='<tr><th>Школа</th><th>Учеников</th><th>Ср. балл ДЗ</th><th>Статус</th><th>Требуют внимания</th><th>Динамика</th></tr>';
+    document.getElementById('drillHead').innerHTML='<tr><th>Школа</th><th>Учеников</th><th>Успеваемость</th><th>Статус</th><th>Требуют внимания</th><th>Динамика</th></tr>';
     document.getElementById('drillBody').innerHTML=schools.map(function(s){
       var st=dzSt(s.dz);
       return '<tr onclick="toggleSchool(\''+s._key+'\')">'
